@@ -48,3 +48,128 @@ def file_path():
         str(PA_SECURITY_TEMPLATE),
         str(PA_NAT_TEMPLATE)
     )
+def commit_changes(pa_credentials, api_keys_list, step_name=""):
+    """
+    Commit configuration changes and monitor until completion.
+    Shared utility for all automation steps.
+    
+    Args:
+        pa_credentials: List of device credentials
+        api_keys_list: List of API headers with keys
+        step_name: Name of the step for logging purposes
+        
+    Returns:
+        bool: True if all commits successful, False otherwise
+    """
+    import requests
+    import xml.etree.ElementTree as ET
+    import time
+    import logging
+    
+    # Disable SSL warnings
+    requests.packages.urllib3.disable_warnings()
+    logger = logging.getLogger()
+    
+    try:
+        jobid_dict = {}
+        ready_devices = {}
+        
+        logger.info(f"Starting commit operations for {step_name}...")
+        
+        # Step 1: Start commits and collect job IDs
+        for device, headers in zip(pa_credentials, api_keys_list):  
+            try:
+                commit_url = f"https://{device['host']}/api/"
+                commit_params = {
+                    'type': 'commit',
+                    'cmd': '<commit></commit>',
+                    'key': headers['X-PAN-KEY']  
+                }
+                
+                response = requests.get(commit_url, params=commit_params, verify=False, timeout=60)
+                
+                if response.status_code == 200:
+                    xml_response = response.text
+                    root = ET.fromstring(xml_response)
+                    result = root.find(".//result")
+                    if result is not None:
+                        jobid = result.findtext("job")
+                        unique_key = f"{device['host']}_{jobid}"
+                        jobid_dict[unique_key] = {
+                            'device': device,
+                            'headers': headers,
+                            'host': device['host'],
+                            'jobid': jobid
+                        }
+                        logger.info(f"Commit job ID for {device['host']}: {jobid}")
+                else:
+                    logger.error(f"Failed to start commit on {device['host']}: {response.status_code}")
+                    return False
+            except Exception as e:
+                logger.error(f"Error committing changes for {device['host']}: {e}")
+                return False
+        
+        if not jobid_dict:
+            logger.error("No commit jobs started")
+            return False
+        
+        # Step 2: Monitor jobs until completion
+        logger.info(f"Monitoring {len(jobid_dict)} commit jobs...")
+        max_wait_time = 600  # 10 minutes max wait
+        start_time = time.time()
+        
+        while jobid_dict and (time.time() - start_time) < max_wait_time:
+            completed_jobs = []
+            for unique_key, job_info in jobid_dict.items():
+                host = job_info['host']
+                jobid = job_info['jobid']
+                headers = job_info['headers']
+                
+                job_url = f"https://{host}/api/"
+                job_params = {
+                    'type': 'op',
+                    'cmd': f'<show><jobs><id>{jobid}</id></jobs></show>',
+                    'key': headers['X-PAN-KEY']
+                }
+                job_response = requests.get(job_url, params=job_params, verify=False, timeout=30)
+                
+                if job_response.status_code == 200:
+                    job_xml_response = job_response.text
+                    root = ET.fromstring(job_xml_response)
+                    job = root.find(".//job")
+                    
+                    if job is not None:
+                        job_status = job.findtext("status")
+                        job_progress = job.findtext("progress", "0")
+                        job_result = job.findtext("result", "")
+                        
+                        if job_status == "ACT":
+                            logger.info(f"Commit running for {host}, progress {job_progress}%")
+                        elif job_status == "FIN":
+                            if job_result == "OK":
+                                logger.info(f"Commit completed successfully for {host}")
+                                ready_devices[host] = True
+                                completed_jobs.append(unique_key)
+                            else:
+                                logger.error(f"Commit failed on {host}: {job_result}")
+                                return False
+            
+            # Remove completed jobs
+            for unique_key in completed_jobs:
+                if unique_key in jobid_dict:
+                    del jobid_dict[unique_key]
+            
+            if not jobid_dict:
+                break
+            time.sleep(15)
+        
+        if jobid_dict:
+            logger.error(f"Timeout waiting for commits to complete for {step_name}")
+            return False
+        
+        logger.info(f"All commits completed successfully for {step_name}!")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error in commit process for {step_name}: {e}")
+        return False

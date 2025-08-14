@@ -2,15 +2,12 @@ pipeline {
     agent any
     
     stages {
-        stage('Checkout Code') {
+        stage('Pull Repository & Setup') {
             steps {
+                cleanWs()
                 git branch: 'main', 
                     url: 'https://github.com/jotape75/jenkins-pa-automation.git'
-            }
-        }
-        
-        stage('Setup Environment') {
-            steps {
+                    
                 sh '''
                     echo "Setting up environment..."
                     python3 --version
