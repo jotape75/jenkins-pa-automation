@@ -38,7 +38,7 @@ env/
 venv/
 
 # Credentials (important!)
-*creds*.json
+.json
 *password*
 *secret*
 EOF

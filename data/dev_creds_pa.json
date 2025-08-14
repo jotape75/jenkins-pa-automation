@@ -1,0 +1,14 @@
+[
+    {
+        "device_type": "paloalto_panos",
+        "host": "192.168.0.226",
+        "username": "api_user",
+        "password": "Admin123!"
+    },
+    {
+        "device_type": "paloalto_panos",
+        "host": "192.168.0.227",
+        "username": "api_user",
+        "password": "Admin123!"
+    }
+]
