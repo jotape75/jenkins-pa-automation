@@ -32,7 +32,6 @@ pipeline {
     post {
         always {
             archiveArtifacts artifacts: 'log/*.log', allowEmptyArchive: true
-            archiveArtifacts artifacts: '*.pkl', allowEmptyArchive: true
         }
         success {
             echo "PA Automation completed successfully!"

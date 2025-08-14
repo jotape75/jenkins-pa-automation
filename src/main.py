@@ -29,12 +29,13 @@ LOG_FILE = LOG_DIR / f"jenkins_pa_automation_{formatted_timestamp}.log"
 # Configure logging
 logging.basicConfig(
     filename=LOG_FILE,
+    filemode='a',  # Append mode instead of overwrite
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     datefmt="%Y-%m-%d %H:%M:%S"
 )
 
-# Also log to console for Jenkins
+# Log to console for Jenkins
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)
 console_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
