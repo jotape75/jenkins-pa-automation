@@ -12,25 +12,8 @@ pipeline {
         stage('Setup Environment') {
             steps {
                 sh '''
-                    echo "Checking for Python..."
-                    
-                    # Install Python if not available
-                    if ! command -v python3 &> /dev/null; then
-                        echo "Python3 not found, installing..."
-                        apt-get update
-                        apt-get install -y python3 python3-pip
-                    else
-                        echo "Python3 found"
-                    fi
-                    
+                    echo "Setting up environment..."
                     python3 --version
-                    
-                    # Install pip if not available
-                    if ! command -v pip3 &> /dev/null; then
-                        echo "pip3 not found, installing..."
-                        apt-get install -y python3-pip
-                    fi
-                    
                     pip3 --version
                     pip3 install -r requirements.txt
                 '''
@@ -48,6 +31,12 @@ pipeline {
         always {
             archiveArtifacts artifacts: 'log/*.log', allowEmptyArchive: true
             archiveArtifacts artifacts: '*.pkl', allowEmptyArchive: true
+        }
+        success {
+            echo "PA Automation completed successfully!"
+        }
+        failure {
+            echo "PA Automation failed. Check logs for details."
         }
     }
 }
