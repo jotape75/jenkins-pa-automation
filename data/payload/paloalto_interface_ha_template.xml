@@ -1,0 +1,9 @@
+<ha1>
+    <port>ethernet1/4</port>
+    <ip-address>{ha1_ip}</ip-address>
+    <netmask>255.255.255.0</netmask>
+</ha1>
+<ha1-backup/>
+<ha2>
+    <port>ethernet1/5</port>
+</ha2>

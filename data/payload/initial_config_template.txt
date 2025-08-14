@@ -1,0 +1,16 @@
+### INITIAL CONFIGURATION FOR BOTH FIREWALLS ###
+
+configure
+delete deviceconfig system type dhcp-client
+set deviceconfig system ip-address 192.168.0.227
+set deviceconfig system netmask 255.255.255.0 
+set deviceconfig system default-gateway 192.168.0.1
+set mgt-config users api_user password 
+<YOUR-PWD>
+<YOUR-PWD>
+set mgt-config users api_user permissions role-based superuser yes
+set deviceconfig system hostname PA-VM-EVE_NG01
+set deviceconfig system dns-setting servers primary 8.8.8.8
+set deviceconfig system dns-setting servers secondary 8.8.4.4
+commit
+exit

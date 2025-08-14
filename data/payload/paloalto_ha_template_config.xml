@@ -1,0 +1,14 @@
+<group-id>1</group-id>
+<peer-ip>{peer_ip}</peer-ip>
+<mode>
+    <active-passive>
+        <passive-link-state>auto</passive-link-state>
+    </active-passive>
+</mode>
+<election-option>
+    <device-priority>{device_priority}</device-priority>
+    <preemptive>{preemptive}</preemptive>
+    <timers>
+        <recommended/>
+    </timers>
+</election-option>

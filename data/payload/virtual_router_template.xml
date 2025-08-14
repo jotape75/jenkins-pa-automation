@@ -1,0 +1,16 @@
+<interface>
+    <member>ethernet1/1</member>
+    <member>ethernet1/2</member>
+    <member>ethernet1/3</member>
+</interface>
+<protocol>
+    <bgp>
+        <enable>no</enable>
+    </bgp>
+    <rip>
+        <enable>no</enable>
+    </rip>
+    <ospf>
+        <enable>no</enable>
+    </ospf>
+</protocol>

@@ -1,0 +1,21 @@
+<entry name="trust">
+    <network>
+        <layer3>
+            <member>ethernet1/1</member>
+        </layer3>
+    </network>
+</entry>
+<entry name="untrust">
+    <network>
+        <layer3>
+            <member>ethernet1/2</member>
+        </layer3>
+    </network>
+</entry>
+<entry name="dmz">
+    <network>
+        <layer3>
+            <member>ethernet1/3</member>
+        </layer3>
+    </network>
+</entry>
