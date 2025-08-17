@@ -24,7 +24,7 @@ class Step03_HAConfig:
     """
     Configure HA settings on all devices.
     
-    Uses discovery data to check current status instead of making API calls.
+    Uses discovery data and follows original ha_configuration() method pattern.
     """
     
     def __init__(self):
@@ -36,7 +36,7 @@ class Step03_HAConfig:
     def execute(self):
         """
         Configure HA settings on all devices.
-        Uses discovery data to check current status and avoid unnecessary changes.
+        Uses discovery data and original 3-step HA configuration pattern.
         
         Returns:
             bool: True if successful, False otherwise
@@ -64,20 +64,33 @@ class Step03_HAConfig:
             
             logger.info(f"Configuring HA settings for {len(pa_credentials)} devices")
             
-            # Load HA configuration template
+            # Load HA configuration templates
             try:
-                from utils_pa import PA_HA_CONFIG_TEMPLATE
+                from utils_pa import PA_HA_CONFIG_TEMPLATE, PA_HA_INT_TEMPLATE
                 with open(PA_HA_CONFIG_TEMPLATE, 'r') as f:
                     ha_config_template = f.read()
-                logger.info(f"Loaded HA config template from {PA_HA_CONFIG_TEMPLATE}")
+                with open(PA_HA_INT_TEMPLATE, 'r') as f:
+                    ha_int_template = f.read()
+                logger.info(f"Loaded HA config templates")
             except Exception as e:
-                logger.error(f"Failed to load HA config template: {e}")
+                logger.error(f"Failed to load HA config templates: {e}")
                 return False
+            
+            # HA configurations (matching your original code)
+            ha_configs = [
+                {'device_priority': '100', 'preemptive': 'yes', 'peer_ip': '1.1.1.2'}, # ha config for first device
+                {'device_priority': '110', 'preemptive': 'no', 'peer_ip': '1.1.1.1'} # ha config for second device
+            ]
+
+            interface_configs = [
+                {'ha1_ip': '1.1.1.1'}, # ha interface config for first device
+                {'ha1_ip': '1.1.1.2'} # ha interface config for second device
+            ]
             
             changes_made = False
             
-            # Configure HA on each device
-            for device, headers in zip(pa_credentials, api_keys_list):
+            # Configure HA on each device (following original 3-step pattern)
+            for i, (device, headers) in enumerate(zip(pa_credentials, api_keys_list)):
                 host = device['host']
                 
                 try:
@@ -93,28 +106,67 @@ class Step03_HAConfig:
                             logger.info(f"Skipping HA configuration on {host} - already configured")
                             continue
                     
-                    # Apply HA configuration
                     logger.info(f"Configuring HA settings on {host}")
+                    ha_url = f"https://{device['host']}/api/"
                     
-                    ha_config_url = f"https://{device['host']}/api/"
-                    ha_config_params = {
+                    # Step 1: Enable basic HA (exactly like original)
+                    basic_ha_params = {
                         'type': 'config',
                         'action': 'set',
-                        'xpath': "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/high-availability",
-                        'element': ha_config_template,
+                        'xpath': f"/config/devices/entry[@name='localhost.localdomain']/deviceconfig/high-availability",
+                        'element': '<enabled>yes</enabled>',
                         'key': headers['X-PAN-KEY']
                     }
-                    
-                    response = requests.get(ha_config_url, params=ha_config_params, verify=False, timeout=30)
-                    
-                    if response.status_code == 200:
-                        xml_response = response.text
-                        logger.info(f"HA configuration applied on {host}")
-                        logger.info(xml_response)
+                    response_basic = requests.get(ha_url, params=basic_ha_params, verify=False, timeout=30)
+                    if response_basic.status_code == 200:
+                        logger.info(f"Basic HA enabled on {host}")
+                        logger.info(response_basic.text)
+                    else:
+                        logger.error(f"Failed to enable basic HA on {host}: {response_basic.status_code}")
+                        continue
+                        
+                    # Step 2: Configure group (exactly like original)
+                    ha_config = ha_configs[i]
+                    group_xml = ha_config_template.format(
+                        device_priority=ha_config['device_priority'],
+                        preemptive=ha_config['preemptive'],
+                        peer_ip=ha_config['peer_ip']
+                    )
+                    group_params = {
+                        'type': 'config',
+                        'action': 'set',
+                        'xpath': f"/config/devices/entry[@name='localhost.localdomain']/deviceconfig/high-availability/group",
+                        'element': group_xml,
+                        'override': 'yes',
+                        'key': headers['X-PAN-KEY']
+                    }
+                    response_group = requests.get(ha_url, params=group_params, verify=False, timeout=30)
+                    if response_group.status_code == 200:
+                        logger.info(f"HA group configured on {host}")
+                        logger.info(response_group.text)
+                    else:
+                        logger.error(f"Failed to configure HA group on {host}: {response_group.status_code}")
+                        continue
+                        
+                    # Step 3: Configure HA interfaces (exactly like original)
+                    config = interface_configs[i]
+                    interface_xml = ha_int_template.format(ha1_ip=config['ha1_ip'])                
+                    interface_params = {
+                        'type': 'config',
+                        'action': 'set',
+                        'xpath': f"/config/devices/entry[@name='localhost.localdomain']/deviceconfig/high-availability/interface",
+                        'override': 'yes',
+                        'element': interface_xml,
+                        'key': headers['X-PAN-KEY']
+                    }
+                    response_int = requests.get(ha_url, params=interface_params, verify=False, timeout=30)
+                    if response_int.status_code == 200:
+                        logger.info(f"HA interfaces configured on {host}")
+                        logger.info(response_int.text)
                         changes_made = True
                     else:
-                        logger.error(f"Failed to configure HA on {host}: {response.status_code}")
-                        return False
+                        logger.error(f"Failed to configure HA interfaces on {host}: {response_int.status_code}")
+                        continue
                         
                 except Exception as e:
                     logger.error(f"Error configuring HA on {host}: {e}")
@@ -151,14 +203,6 @@ class Step03_HAConfig:
     def _check_ha_config_status(self, device, headers):
         """
         Fallback method to check if HA configuration already exists via API.
-        Only used when discovery data is not available.
-        
-        Args:
-            device: Device credentials
-            headers: API headers with key
-            
-        Returns:
-            bool: True if HA is already configured, False otherwise
         """
         try:
             check_url = f"https://{device['host']}/api/"
@@ -174,23 +218,17 @@ class Step03_HAConfig:
             if response.status_code == 200:
                 xml_response = response.text
                 root = ET.fromstring(xml_response)
-                
-                # Check if high-availability configuration exists and has content
                 ha_config = root.find(".//high-availability")
+                
                 if ha_config is not None and len(ha_config) > 0:
-                    # Check for key HA elements
                     enabled = ha_config.find(".//enabled")
                     group_id = ha_config.find(".//group-id")
                     
                     if enabled is not None or group_id is not None:
                         logger.info(f"HA configuration already exists on {device['host']}")
                         return True
-                    else:
-                        logger.info(f"HA configuration is empty on {device['host']}")
-                        return False
-                else:
-                    logger.info(f"No HA configuration found on {device['host']}")
-                    return False
+                
+                return False
             else:
                 logger.warning(f"Could not check HA config status on {device['host']}: {response.status_code}")
                 return False
