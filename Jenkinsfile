@@ -22,9 +22,22 @@ pipeline {
                 sh 'python3 src/main.py --step api_keys'
             }
         }
-        stage('Enabling HA Interfaces') {
+        
+        stage('Discovery') {
+            steps {
+                sh 'python3 src/main.py --step discovery'
+            }
+        }
+        
+        stage('Enable HA Interfaces') {
             steps {
                 sh 'python3 src/main.py --step ha_interfaces'
+            }
+        }
+        
+        stage('Configure HA Settings') {
+            steps {
+                sh 'python3 src/main.py --step ha_config'
             }
         }
     }
