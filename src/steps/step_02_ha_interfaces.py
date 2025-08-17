@@ -2,7 +2,7 @@
 Step 2: Enable HA Interfaces for PA Firewalls
 
 Extracts the enable_HA_interfaces logic from PaloAltoFirewall_HA class
-and adapts it for Jenkins execution.
+and adapts it for Jenkins execution with discovery-based checking.
 """
 
 import requests
@@ -24,7 +24,7 @@ class Step02_HAInterfaces:
     """
     Enable HA interfaces (ethernet1/4 and ethernet1/5) on all devices.
     
-    Direct extraction from PaloAltoFirewall_HA.enable_HA_interfaces() method.
+    Uses discovery data to check current status instead of making API calls.
     """
     
     def __init__(self):
@@ -33,9 +33,124 @@ class Step02_HAInterfaces:
         """
         pass
     
+    def execute(self):
+        """
+        Enable HA interfaces on all devices.
+        Uses discovery data to check current status and avoid unnecessary changes.
+        
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Load discovery data to check current status
+            try:
+                with open('discovery_data.pkl', 'rb') as f:
+                    discovery_data = pickle.load(f)
+                
+                device_status = discovery_data['device_status']
+                pa_credentials = discovery_data['pa_credentials']
+                api_keys_list = discovery_data['api_keys_list']
+                logger.info("Using discovery data for HA interface status")
+                
+            except FileNotFoundError:
+                # Fallback to API keys data if no discovery data
+                logger.warning("Discovery data not found, falling back to API keys data")
+                with open('api_keys_data.pkl', 'rb') as f:
+                    api_data = pickle.load(f)
+                
+                pa_credentials = api_data['pa_credentials']
+                api_keys_list = api_data['api_keys_list']
+                device_status = None
+            
+            logger.info(f"Enabling HA interfaces for {len(pa_credentials)} devices")
+            
+            changes_made = False
+            
+            # Configure HA interfaces on each device
+            for device, headers in zip(pa_credentials, api_keys_list):
+                host = device['host']
+                interfaces = ['ethernet1/4', 'ethernet1/5']
+                device_changes = False
+                
+                try:
+                    ha_interfaces_link_url = f"https://{device['host']}/api/"
+                    
+                    for interface in interfaces:
+                        # Check status from discovery data if available
+                        if device_status and host in device_status:
+                            interface_configured = device_status[host]['ha_interfaces'].get(interface, False)
+                            if interface_configured:
+                                logger.info(f"Skipping {interface} on {host} - already configured for HA (from discovery)")
+                                continue
+                        else:
+                            # Fallback to API check if no discovery data
+                            if self._check_ha_interface_status(device, headers, interface):
+                                logger.info(f"Skipping {interface} on {host} - already configured for HA")
+                                continue
+                        
+                        # Configure interface for HA
+                        logger.info(f"Configuring {interface} on {host} for HA")
+                        interfaces_xml_parms = {
+                            'type': 'config',
+                            'action': 'set',
+                            'xpath': f"/config/devices/entry[@name='localhost.localdomain']/network/interface/ethernet/entry[@name='{interface}']",
+                            'element': '<ha/>',
+                            'override': 'yes',
+                            'key': headers['X-PAN-KEY']  # API key as parameter
+                        }
+                        response_control = requests.get(ha_interfaces_link_url, params=interfaces_xml_parms, verify=False, timeout=30)
+                        
+                        if response_control.status_code == 200:
+                            xml_response_control = response_control.text
+                            logger.info(f"HA interface {interface} enabled on {host}")
+                            logger.info(xml_response_control)
+                            device_changes = True
+                            changes_made = True
+                        else:
+                            logger.error(f"Failed to enable HA interface {interface} on {host}: {response_control.status_code}")
+                            return False
+                    
+                    if device_changes:
+                        logger.info(f"HA interfaces configuration completed for {host}")
+                    else:
+                        logger.info(f"No HA interface changes needed for {host}")
+                        
+                except Exception as e:
+                    logger.error(f"Error in HA configuration for {host}: {e}")
+                    return False
+            
+            # Only commit if changes were made
+            if changes_made:
+                logger.info("Changes made - proceeding with commit")
+                from utils_pa import commit_changes
+                success = commit_changes(pa_credentials, api_keys_list, "HA Interfaces")
+                if not success:
+                    return False
+            else:
+                logger.info("No changes made - skipping commit")
+            
+            # Save completion status for next steps
+            step_data = {
+                'ha_interfaces_enabled': True,
+                'changes_made': changes_made,
+                'pa_credentials': pa_credentials,
+                'api_keys_list': api_keys_list
+            }
+            
+            with open('ha_interfaces_data.pkl', 'wb') as f:
+                pickle.dump(step_data, f)
+            
+            logger.info("HA interfaces enablement completed successfully")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Unexpected error in HA interfaces enablement: {e}")
+            return False
+    
     def _check_ha_interface_status(self, device, headers, interface):
         """
-        Check if HA interface is already configured.
+        Fallback method to check if HA interface is already configured via API.
+        Only used when discovery data is not available.
         
         Args:
             device: Device credentials
@@ -74,97 +189,4 @@ class Step02_HAInterfaces:
                 
         except Exception as e:
             logger.warning(f"Error checking HA interface status for {interface} on {device['host']}: {e}")
-            return False
-    
-    def execute(self):
-        """
-        Enable HA interfaces on all devices.
-        Uses the exact logic from your original enable_HA_interfaces() method.
-        
-        Returns:
-            bool: True if successful, False otherwise
-        """
-        try:
-            # Load API keys and credentials from Step 1
-            with open('api_keys_data.pkl', 'rb') as f:
-                api_data = pickle.load(f)
-            
-            pa_credentials = api_data['pa_credentials']
-            api_keys_list = api_data['api_keys_list']
-            
-            logger.info(f"Enabling HA interfaces for {len(pa_credentials)} devices")
-            
-            changes_made = False
-            
-            # Your exact original logic from enable_HA_interfaces() with HA check
-            for device, headers in zip(pa_credentials, api_keys_list):
-                interfaces = ['ethernet1/4', 'ethernet1/5']
-                device_changes = False
-                
-                try:
-                    ha_interfaces_link_url = f"https://{device['host']}/api/"
-                    
-                    for interface in interfaces:
-                        # Check if interface is already configured for HA
-                        if self._check_ha_interface_status(device, headers, interface):
-                            logger.info(f"Skipping {interface} on {device['host']} - already configured for HA")
-                            continue
-                        
-                        # Configure interface for HA
-                        logger.info(f"Configuring {interface} on {device['host']} for HA")
-                        interfaces_xml_parms = {
-                            'type': 'config',
-                            'action': 'set',
-                            'xpath': f"/config/devices/entry[@name='localhost.localdomain']/network/interface/ethernet/entry[@name='{interface}']",
-                            'element': '<ha/>',
-                            'override': 'yes',
-                            'key': headers['X-PAN-KEY']  # API key as parameter
-                        }
-                        response_control = requests.get(ha_interfaces_link_url, params=interfaces_xml_parms, verify=False, timeout=30)
-                        
-                        if response_control.status_code == 200:
-                            xml_response_control = response_control.text
-                            logger.info(f"HA interface {interface} enabled on {device['host']}")
-                            logger.info(xml_response_control)
-                            device_changes = True
-                            changes_made = True
-                        else:
-                            logger.error(f"Failed to enable HA interface {interface} on {device['host']}: {response_control.status_code}")
-                            return False
-                    
-                    if device_changes:
-                        logger.info(f"HA interfaces configuration completed for {device['host']}")
-                    else:
-                        logger.info(f"No HA interface changes needed for {device['host']}")
-                        
-                except Exception as e:
-                    logger.error(f"Error in HA configuration for {device['host']}: {e}")
-                    return False
-            
-            # Only commit if changes were made
-            if changes_made:
-                logger.info("Changes made - proceeding with commit")
-                from utils_pa import commit_changes
-                success = commit_changes(pa_credentials, api_keys_list, "HA Interfaces")
-                if not success:
-                    return False
-            else:
-                logger.info("No changes made - skipping commit")
-            
-            # Save completion status for next steps
-            step_data = {
-                'ha_interfaces_enabled': True,
-                'changes_made': changes_made,
-                'pa_credentials': pa_credentials,
-                'api_keys_list': api_keys_list
-            }
-            
-            with open('ha_interfaces_data.pkl', 'wb') as f:
-                pickle.dump(step_data, f)
-            
-            logger.info("HA interfaces enablement completed successfully")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Unexpected error in HA interfaces enablement: {e}")
             return False
