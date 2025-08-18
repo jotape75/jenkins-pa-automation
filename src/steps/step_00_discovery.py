@@ -65,7 +65,7 @@ class Step00_Discovery:
         return interfaces_status
     
     def _check_ha_config(self, device, headers):
-        """Check HA configuration for a device."""
+        """Check HA configuration for a device - improved detection."""
         try:
             check_url = f"https://{device['host']}/api/"
             check_params = {
@@ -75,6 +75,48 @@ class Step00_Discovery:
                 'key': headers['X-PAN-KEY']
             }
             
+            response = requests.get(check_url, params=check_params, verify=False, timeout=30)
+            
+            if response.status_code == 200:
+                xml_response = response.text
+                root = ET.fromstring(xml_response)
+                ha_config = root.find(".//high-availability")
+                
+                if ha_config is not None:
+                    # Check for multiple indicators of HA configuration
+                    enabled = ha_config.find(".//enabled")
+                    group = ha_config.find(".//group")
+                    interface = ha_config.find(".//interface")
+                    
+                    # More comprehensive check
+                    has_enabled = enabled is not None and enabled.text == "yes"
+                    has_group = group is not None and len(group) > 0
+                    has_interface = interface is not None and len(interface) > 0
+                    
+                    if has_enabled or has_group or has_interface:
+                        logger.info(f"HA config found on {device['host']}: enabled={has_enabled}, group={has_group}, interface={has_interface}")
+                        return True
+                
+                logger.info(f"No HA configuration found on {device['host']}")
+                return False
+                
+            return False
+            
+        except Exception as e:
+            logger.warning(f"Error checking HA config on {device['host']}: {e}")
+            return False
+
+    def _check_interfaces_config(self, device, headers):
+        """Check interfaces configuration for a device."""
+        try:
+            check_url = f"https://{device['host']}/api/"
+            check_params = {
+                'type': 'config',
+                'action': 'get',
+                'xpath': "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/interfaces",
+                'key': headers['X-PAN-KEY']
+            }
+
             response = requests.get(check_url, params=check_params, verify=False, timeout=30)
             
             if response.status_code == 200:
