@@ -18,15 +18,14 @@ DATA_DIR = PROJECT_ROOT / "data" # navigate to data directory
 PAYLOAD_DIR = DATA_DIR / "payload" # navigate to payload directory
 
 # File paths as constants (no external JSON dependency)
-PA_CREDS_FILE = DATA_DIR / "dev_creds_pa.json"
-PA_HA_CONFIG_TEMPLATE = PAYLOAD_DIR / "paloalto_ha_template_config.xml"
-PA_HA_INT_TEMPLATE = PAYLOAD_DIR / "paloalto_interface_ha_template.xml"
-PA_INTERFACE_TEMPLATE = PAYLOAD_DIR / "data_interface.xml"
-PA_ZONES_TEMPLATE = PAYLOAD_DIR / "zones.xml"
-PA_ROUTER_TEMPLATE = PAYLOAD_DIR / "virtual_router_template.xml"
-PA_ROUTES_TEMPLATE = PAYLOAD_DIR / "static_route_template.xml"
-PA_SECURITY_TEMPLATE = PAYLOAD_DIR / "security_policy_template.xml"
-PA_NAT_TEMPLATE = PAYLOAD_DIR / "source_nat_template.xml"
+# Updated template paths
+PA_INTERFACE_TEMPLATE = f"{get_project_root()}/data/payload/data_interface.xml"
+PA_HA_INTERFACE_TEMPLATE = f"{get_project_root()}/data/payload/data_ha_interface.xml"
+PA_ZONES_TEMPLATE = f"{get_project_root()}/data/payload/data_zones.xml"
+PA_ROUTER_TEMPLATE = f"{get_project_root()}/data/payload/data_router.xml"
+PA_ROUTES_TEMPLATE = f"{get_project_root()}/data/payload/data_routes.xml"
+PA_SECURITY_TEMPLATE = f"{get_project_root()}/data/payload/data_security.xml"
+PA_NAT_TEMPLATE = f"{get_project_root()}/data/payload/data_nat.xml"
 
 def file_path():
     """
