@@ -1,5 +1,5 @@
 """
-Step 6: Commit and Sync Configuration
+Step 10: Commit and Sync Configuration
 
 Extracts commit_changes and force_sync_config logic from PaloAltoFirewall_config class
 and adapts it for Jenkins execution.
@@ -21,7 +21,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 requests.packages.urllib3.disable_warnings()
 logger = logging.getLogger()
 
-class Step06_CommitSync:
+class Step10_Commit:
     """
     Commit configuration changes and force HA synchronization.
     
@@ -65,10 +65,11 @@ class Step06_CommitSync:
             active_host = active_fw_list[0]['host']
             logger.info(f"Committing and syncing configuration on: {active_host}")
             
-            # Check if any configuration changes were made
-            changes_made = any(result in ['success'] for result in config_results.values())
-            if not changes_made:
-                logger.info("No configuration changes were made - skipping commit and sync")
+            # Check if there are actual pending changes on the firewall
+            has_pending_changes = self._check_pending_changes(active_fw_list[0], active_fw_headers[0])
+            
+            if not has_pending_changes:
+                logger.info("No pending changes found on firewall - skipping commit and sync")
                 
                 # Save completion status anyway
                 step_data = {
@@ -82,16 +83,17 @@ class Step06_CommitSync:
                 with open('commit_sync_data.pkl', 'wb') as f:
                     pickle.dump(step_data, f)
                 
-                logger.info("Commit and sync completed (skipped - no changes)")
+                logger.info("Commit and sync completed (skipped - no pending changes)")
                 return True
             
+            logger.info("Pending changes detected - proceeding with commit and sync")
             commit_results = {}
             
-            # Step 6.1: Commit Configuration Changes - EXACT original logic
+            # Step 10.1: Commit Configuration Changes - EXACT original logic
             if not self._commit_changes(active_fw_list, active_fw_headers, commit_results):
                 return False
             
-            # Step 6.2: Force HA Configuration Sync - EXACT original logic
+            # Step 10.2: Force HA Configuration Sync - EXACT original logic
             if not self._force_sync_config(active_fw_list, active_fw_headers, commit_results):
                 return False
             
@@ -116,6 +118,47 @@ class Step06_CommitSync:
         except Exception as e:
             logger.error(f"Unexpected error in commit and sync: {e}")
             return False
+    
+    def _check_pending_changes(self, device, headers):
+        """Check if there are pending configuration changes on the firewall"""
+        try:
+            check_url = f"https://{device['host']}/api/"
+            check_params = {
+                'type': 'op',
+                'cmd': '<show><config><diff></diff></config></show>',
+                'key': headers['X-PAN-KEY']
+            }
+            
+            response = requests.get(check_url, params=check_params, verify=False, timeout=30)
+            
+            if response.status_code == 200:
+                xml_response = response.text
+                logger.info(f"Config diff response: {xml_response}")
+                
+                # If there's any meaningful diff content, there are pending changes
+                if '<diff>' in xml_response and '</diff>' in xml_response:
+                    # Extract diff content
+                    root = ET.fromstring(xml_response)
+                    diff_element = root.find(".//diff")
+                    
+                    if diff_element is not None and diff_element.text:
+                        diff_content = diff_element.text.strip()
+                        if diff_content and diff_content != "":
+                            logger.info(f"Pending changes detected on {device['host']}")
+                            logger.info(f"Diff content: {diff_content}")
+                            return True
+                    
+                logger.info(f"No pending changes found on {device['host']}")
+                return False
+            else:
+                logger.warning(f"Failed to check config diff on {device['host']}: {response.status_code}")
+                # If we can't check, assume there might be changes and proceed with commit
+                return True
+                
+        except Exception as e:
+            logger.warning(f"Error checking pending changes on {device['host']}: {e}")
+            # If we can't check, assume there might be changes and proceed with commit
+            return True
     
     def _commit_changes(self, active_fw_list, active_fw_headers, results):
         """Commit configuration changes - EXACT logic from original commit_changes()"""
