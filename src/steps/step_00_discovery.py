@@ -212,18 +212,172 @@ class Step00_Discovery:
     
     def _check_routing_config(self, device, headers):
         """Check routing configuration."""
-        # Add routing checking logic
-        return {}
-    
+        try:
+            routing_status = {}
+            
+            # Check virtual router configuration
+            check_url = f"https://{device['host']}/api/"
+            check_params = {
+                'type': 'config',
+                'action': 'get',
+                'xpath': "/config/devices/entry[@name='localhost.localdomain']/network/virtual-router",
+                'key': headers['X-PAN-KEY']
+            }
+            
+            response = requests.get(check_url, params=check_params, verify=False, timeout=30)
+            
+            if response.status_code == 200:
+                xml_response = response.text
+                root = ET.fromstring(xml_response)
+                
+                # Check for virtual router entries
+                vr_entries = root.findall(".//entry")
+                
+                if vr_entries:
+                    for vr_entry in vr_entries:
+                        vr_name = vr_entry.get('name')
+                        if vr_name:
+                            # Check for static routes
+                            static_routes = vr_entry.findall(".//routing-table/ip/static-route/entry")
+                            has_static_routes = len(static_routes) > 0
+                            
+                            # Check for interface assignments
+                            interfaces = vr_entry.findall(".//interface/member")
+                            has_interfaces = len(interfaces) > 0
+                            
+                            routing_status[vr_name] = {
+                                'configured': True,
+                                'has_static_routes': has_static_routes,
+                                'has_interfaces': has_interfaces,
+                                'static_routes_count': len(static_routes),
+                                'interfaces_count': len(interfaces)
+                            }
+                    
+                    logger.info(f"Found {len(routing_status)} virtual routers on {device['host']}")
+                    return routing_status
+                else:
+                    logger.info(f"No virtual routers found on {device['host']}")
+                    return {}
+            else:
+                logger.warning(f"Failed to check routing on {device['host']}: {response.status_code}")
+                return {}
+                
+        except Exception as e:
+            logger.warning(f"Error checking routing config on {device['host']}: {e}")
+            return {}
+
     def _check_security_policies(self, device, headers):
         """Check security policies configuration."""
-        # Add security policies checking logic
-        return {}
-    
+        try:
+            policies_status = {}
+            
+            # Check security policies
+            check_url = f"https://{device['host']}/api/"
+            check_params = {
+                'type': 'config',
+                'action': 'get',
+                'xpath': "/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/rulebase/security/rules",
+                'key': headers['X-PAN-KEY']
+            }
+            
+            response = requests.get(check_url, params=check_params, verify=False, timeout=30)
+            
+            if response.status_code == 200:
+                xml_response = response.text
+                root = ET.fromstring(xml_response)
+                
+                # Check for security rule entries
+                rule_entries = root.findall(".//entry")
+                
+                if rule_entries:
+                    for rule_entry in rule_entries:
+                        rule_name = rule_entry.get('name')
+                        if rule_name:
+                            # Check rule details
+                            from_zone = rule_entry.find(".//from")
+                            to_zone = rule_entry.find(".//to")
+                            source = rule_entry.find(".//source")
+                            destination = rule_entry.find(".//destination")
+                            action = rule_entry.find(".//action")
+                            
+                            policies_status[rule_name] = {
+                                'configured': True,
+                                'has_from_zone': from_zone is not None,
+                                'has_to_zone': to_zone is not None,
+                                'has_source': source is not None,
+                                'has_destination': destination is not None,
+                                'has_action': action is not None,
+                                'action_value': action.text if action is not None else None
+                            }
+                    
+                    logger.info(f"Found {len(policies_status)} security policies on {device['host']}")
+                    return policies_status
+                else:
+                    logger.info(f"No security policies found on {device['host']}")
+                    return {}
+            else:
+                logger.warning(f"Failed to check security policies on {device['host']}: {response.status_code}")
+                return {}
+                
+        except Exception as e:
+            logger.warning(f"Error checking security policies on {device['host']}: {e}")
+            return {}
+
     def _check_nat_rules(self, device, headers):
         """Check NAT rules configuration."""
-        # Add NAT rules checking logic
-        return {}
+        try:
+            nat_status = {}
+            
+            # Check NAT rules
+            check_url = f"https://{device['host']}/api/"
+            check_params = {
+                'type': 'config',
+                'action': 'get',
+                'xpath': "/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/rulebase/nat/rules",
+                'key': headers['X-PAN-KEY']
+            }
+            
+            response = requests.get(check_url, params=check_params, verify=False, timeout=30)
+            
+            if response.status_code == 200:
+                xml_response = response.text
+                root = ET.fromstring(xml_response)
+                
+                # Check for NAT rule entries
+                rule_entries = root.findall(".//entry")
+                
+                if rule_entries:
+                    for rule_entry in rule_entries:
+                        rule_name = rule_entry.get('name')
+                        if rule_name:
+                            # Check NAT rule details
+                            from_zone = rule_entry.find(".//from")
+                            to_zone = rule_entry.find(".//to")
+                            source = rule_entry.find(".//source")
+                            destination = rule_entry.find(".//destination")
+                            source_translation = rule_entry.find(".//source-translation")
+                            
+                            nat_status[rule_name] = {
+                                'configured': True,
+                                'has_from_zone': from_zone is not None,
+                                'has_to_zone': to_zone is not None,
+                                'has_source': source is not None,
+                                'has_destination': destination is not None,
+                                'has_source_translation': source_translation is not None
+                            }
+                    
+                    logger.info(f"Found {len(nat_status)} NAT rules on {device['host']}")
+                    return nat_status
+                else:
+                    logger.info(f"No NAT rules found on {device['host']}")
+                    return {}
+            else:
+                logger.warning(f"Failed to check NAT rules on {device['host']}: {response.status_code}")
+                return {}
+                
+        except Exception as e:
+            logger.warning(f"Error checking NAT rules on {device['host']}: {e}")
+            return {}
     
     def execute(self):
         """
@@ -263,6 +417,11 @@ class Step00_Discovery:
                 logger.info(f"Discovery completed for {host}")
                 logger.info(f"  HA Interfaces: {device_status[host]['ha_interfaces']}")
                 logger.info(f"  HA Config: {device_status[host]['ha_config']}")
+                logger.info(f"  Interfaces: {len(device_status[host]['interfaces'])} checked")
+                logger.info(f"  Zones: {len(device_status[host]['zones'])} found")
+                logger.info(f"  Virtual Routers: {len(device_status[host]['routing'])} found")
+                logger.info(f"  Security Policies: {len(device_status[host]['security_policies'])} found")
+                logger.info(f"  NAT Rules: {len(device_status[host]['nat_rules'])} found")
             
             # Save discovery results
             discovery_data = {

@@ -59,31 +59,46 @@ class Step05_FirewallConfig:
                 logger.error("Active firewall data not found. Run identify_active step first.")
                 return False
             
+            # Load discovery data for smart configuration decisions
+            discovery_data = None
+            try:
+                with open('discovery_data.pkl', 'rb') as f:
+                    discovery_data = pickle.load(f)
+                logger.info("Using discovery data for intelligent configuration decisions")
+            except FileNotFoundError:
+                logger.warning("Discovery data not found, proceeding with full configuration")
+            
             active_host = active_fw_list[0]['host']
             active_key = active_fw_headers[0]['X-PAN-KEY']
             logger.info(f"Configuring firewall: {active_host}")
+            
+            # Get existing configuration status from discovery
+            existing_config = {}
+            if discovery_data and active_host in discovery_data['device_status']:
+                existing_config = discovery_data['device_status'][active_host]
+                logger.info(f"Found existing configuration status for {active_host}")
             
             # Execute all configuration steps in sequence
             config_results = {}
             
             # Step 5.1: Interface Configuration
-            if not self._configure_interfaces(active_host, active_key, config_results):
+            if not self._configure_interfaces(active_host, active_key, existing_config.get('interfaces', {}), config_results):
                 return False
                 
             # Step 5.2: Zone Configuration
-            if not self._configure_zones(active_host, active_key, config_results):
+            if not self._configure_zones(active_host, active_key, existing_config.get('zones', {}), config_results):
                 return False
                 
             # Step 5.3: Routing Configuration
-            if not self._configure_routing(active_host, active_key, config_results):
+            if not self._configure_routing(active_host, active_key, existing_config.get('routing', {}), config_results):
                 return False
                 
             # Step 5.4: Security Policy Configuration
-            if not self._configure_security_policies(active_host, active_key, config_results):
+            if not self._configure_security_policies(active_host, active_key, existing_config.get('security_policies', {}), config_results):
                 return False
                 
             # Step 5.5: Source NAT Configuration
-            if not self._configure_source_nat(active_host, active_key, config_results):
+            if not self._configure_source_nat(active_host, active_key, existing_config.get('nat_rules', {}), config_results):
                 return False
             
             # Save completion status for next steps
@@ -106,10 +121,18 @@ class Step05_FirewallConfig:
             logger.error(f"Unexpected error in firewall configuration: {e}")
             return False
     
-    def _configure_interfaces(self, host, api_key, results):
-        """Configure interfaces - exact logic from act_fw_int_config()"""
+    def _configure_interfaces(self, host, api_key, existing_interfaces, results):
+        """Configure interfaces - with discovery-based checking"""
         try:
             logger.info("Configuring interfaces...")
+            
+            # Check if interfaces are already configured
+            if existing_interfaces:
+                configured_count = sum(1 for iface in existing_interfaces.values() if iface.get('configured', False))
+                if configured_count > 0:
+                    logger.info(f"Found {configured_count} already configured interfaces - skipping interface configuration")
+                    results['interfaces'] = 'skipped'
+                    return True
             
             # Load interface template
             from utils_pa import PA_INTERFACE_TEMPLATE
@@ -142,10 +165,16 @@ class Step05_FirewallConfig:
             results['interfaces'] = 'error'
             return False
     
-    def _configure_zones(self, host, api_key, results):
-        """Configure zones - exact logic from act_fw_zone_config()"""
+    def _configure_zones(self, host, api_key, existing_zones, results):
+        """Configure zones - with discovery-based checking"""
         try:
             logger.info("Configuring zones...")
+            
+            # Check if zones are already configured
+            if existing_zones:
+                logger.info(f"Found {len(existing_zones)} existing zones: {list(existing_zones.keys())} - skipping zone configuration")
+                results['zones'] = 'skipped'
+                return True
             
             # Load zones template
             from utils_pa import PA_ZONES_TEMPLATE
@@ -178,16 +207,24 @@ class Step05_FirewallConfig:
             results['zones'] = 'error'
             return False
     
-    def _configure_routing(self, host, api_key, results):
-        """Configure routing - exact logic from act_fw_route_config()"""
+    def _configure_routing(self, host, api_key, existing_routing, results):
+        """Configure routing - with discovery-based checking"""
         try:
             logger.info("Configuring routing...")
             
+            # Check if routing is already configured
+            if existing_routing:
+                configured_routers = [name for name, config in existing_routing.items() if config.get('configured', False)]
+                if configured_routers:
+                    logger.info(f"Found {len(configured_routers)} configured virtual routers: {configured_routers} - skipping routing configuration")
+                    results['routing'] = 'skipped'
+                    return True
+            
             # Load routing templates
-            from utils_pa import PA_ROUTE_SETTINGS_TEMPLATE, PA_STATIC_ROUTES_TEMPLATE
-            with open(PA_ROUTE_SETTINGS_TEMPLATE, 'r') as f:
+            from utils_pa import PA_ROUTER_TEMPLATE, PA_ROUTES_TEMPLATE
+            with open(PA_ROUTER_TEMPLATE, 'r') as f:
                 pa_route_settings_tmp = f.read()
-            with open(PA_STATIC_ROUTES_TEMPLATE, 'r') as f:
+            with open(PA_ROUTES_TEMPLATE, 'r') as f:
                 pa_static_routes_tmp = f.read()
             
             config_url = f"https://{host}/api/"
@@ -235,14 +272,20 @@ class Step05_FirewallConfig:
             results['routing'] = 'error'
             return False
     
-    def _configure_security_policies(self, host, api_key, results):
-        """Configure security policies - exact logic from act_fw_security_policy_config()"""
+    def _configure_security_policies(self, host, api_key, existing_policies, results):
+        """Configure security policies - with discovery-based checking"""
         try:
             logger.info("Configuring security policies...")
             
+            # Check if security policies are already configured
+            if existing_policies:
+                logger.info(f"Found {len(existing_policies)} existing security policies: {list(existing_policies.keys())} - skipping security policy configuration")
+                results['security_policies'] = 'skipped'
+                return True
+            
             # Load security policy template
-            from utils_pa import PA_SECURITY_POLICY_TEMPLATE
-            with open(PA_SECURITY_POLICY_TEMPLATE, 'r') as f:
+            from utils_pa import PA_SECURITY_TEMPLATE
+            with open(PA_SECURITY_TEMPLATE, 'r') as f:
                 pa_security_policy_tmp = f.read()
             
             security_policy_xpath = f"/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/rulebase/security/rules"
@@ -271,14 +314,20 @@ class Step05_FirewallConfig:
             results['security_policies'] = 'error'
             return False
     
-    def _configure_source_nat(self, host, api_key, results):
-        """Configure source NAT - exact logic from act_fw_source_nat_config()"""
+    def _configure_source_nat(self, host, api_key, existing_nat_rules, results):
+        """Configure source NAT - with discovery-based checking"""
         try:
             logger.info("Configuring source NAT...")
             
+            # Check if NAT rules are already configured
+            if existing_nat_rules:
+                logger.info(f"Found {len(existing_nat_rules)} existing NAT rules: {list(existing_nat_rules.keys())} - skipping NAT configuration")
+                results['source_nat'] = 'skipped'
+                return True
+            
             # Load source NAT template
-            from utils_pa import PA_SOURCE_NAT_TEMPLATE
-            with open(PA_SOURCE_NAT_TEMPLATE, 'r') as f:
+            from utils_pa import PA_NAT_TEMPLATE
+            with open(PA_NAT_TEMPLATE, 'r') as f:
                 pa_source_nat_tmp = f.read()
             
             source_nat_xpath = f"/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/rulebase/nat/rules"
