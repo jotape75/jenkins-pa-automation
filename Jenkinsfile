@@ -45,9 +45,9 @@ pipeline {
                 sh 'python3 src/main.py --step identify_active'
             }
         }
-        stage('Configure Interfaces') {
+        stage('Complete Firewall Configuration') {
             steps {
-                sh 'python3 src/main.py --step interfaces'
+                sh 'python3 src/main.py --step firewall_config'
             }
         }
     }

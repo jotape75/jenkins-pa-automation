@@ -163,8 +163,52 @@ class Step00_Discovery:
     
     def _check_zones_config(self, device, headers):
         """Check zones configuration."""
-        # Add zones checking logic
-        return {}
+        try:
+            zones_status = {}
+            
+            # Check if zones are configured
+            check_url = f"https://{device['host']}/api/"
+            check_params = {
+                'type': 'config',
+                'action': 'get',
+                'xpath': "/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/zone",
+                'key': headers['X-PAN-KEY']
+            }
+            
+            response = requests.get(check_url, params=check_params, verify=False, timeout=30)
+            
+            if response.status_code == 200:
+                xml_response = response.text
+                root = ET.fromstring(xml_response)
+                
+                # Check for zone entries
+                zone_entries = root.findall(".//entry")
+                
+                if zone_entries:
+                    for zone_entry in zone_entries:
+                        zone_name = zone_entry.get('name')
+                        if zone_name:
+                            # Check if zone has interface assignments
+                            network_layer3 = zone_entry.find(".//network/layer3")
+                            has_interfaces = network_layer3 is not None and len(network_layer3) > 0
+                            
+                            zones_status[zone_name] = {
+                                'configured': True,
+                                'has_interfaces': has_interfaces
+                            }
+                    
+                    logger.info(f"Found {len(zones_status)} zones on {device['host']}")
+                    return zones_status
+                else:
+                    logger.info(f"No zones found on {device['host']}")
+                    return {}
+            else:
+                logger.warning(f"Failed to check zones on {device['host']}: {response.status_code}")
+                return {}
+                
+        except Exception as e:
+            logger.warning(f"Error checking zones config on {device['host']}: {e}")
+            return {}
     
     def _check_routing_config(self, device, headers):
         """Check routing configuration."""
