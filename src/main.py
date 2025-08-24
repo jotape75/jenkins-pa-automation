@@ -78,6 +78,10 @@ def main():
             from steps.step_04_identify_active import Step04_IdentifyActive
             step = Step04_IdentifyActive()
             success = step.execute()
+        elif args.step == 'interfaces':
+            from steps.step_05_interfaces import Step05_Interfaces
+            step = Step05_Interfaces()
+            success = step.execute()
             
         # ... will add more as we create them
         

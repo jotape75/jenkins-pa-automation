@@ -107,38 +107,59 @@ class Step00_Discovery:
             return False
 
     def _check_interfaces_config(self, device, headers):
-        """Check interfaces configuration for a device."""
+        """Check general interface configuration."""
         try:
-            check_url = f"https://{device['host']}/api/"
-            check_params = {
-                'type': 'config',
-                'action': 'get',
-                'xpath': "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/interfaces",
-                'key': headers['X-PAN-KEY']
-            }
-
-            response = requests.get(check_url, params=check_params, verify=False, timeout=30)
+            interfaces_status = {}
             
-            if response.status_code == 200:
-                xml_response = response.text
-                root = ET.fromstring(xml_response)
-                ha_config = root.find(".//high-availability")
-                
-                if ha_config is not None and len(ha_config) > 0:
-                    enabled = ha_config.find(".//enabled")
-                    group_id = ha_config.find(".//group-id")
-                    return enabled is not None or group_id is not None
-                
-            return False
+            # Check common interfaces (ethernet1/1, ethernet1/2, ethernet1/3)
+            interfaces = ['ethernet1/1', 'ethernet1/2', 'ethernet1/3']
+            
+            for interface in interfaces:
+                try:
+                    check_url = f"https://{device['host']}/api/"
+                    check_params = {
+                        'type': 'config',
+                        'action': 'get',
+                        'xpath': f"/config/devices/entry[@name='localhost.localdomain']/network/interface/ethernet/entry[@name='{interface}']",
+                        'key': headers['X-PAN-KEY']
+                    }
+                    
+                    response = requests.get(check_url, params=check_params, verify=False, timeout=30)
+                    
+                    if response.status_code == 200:
+                        xml_response = response.text
+                        root = ET.fromstring(xml_response)
+                        
+                        # Check if interface has Layer 3 configuration
+                        layer3 = root.find(".//layer3")
+                        has_ip = layer3 is not None and layer3.find(".//ip") is not None
+                        has_zone = layer3 is not None and layer3.find(".//zone") is not None
+                        
+                        interfaces_status[interface] = {
+                            'configured': layer3 is not None,
+                            'has_ip': has_ip,
+                            'has_zone': has_zone
+                        }
+                    else:
+                        interfaces_status[interface] = {
+                            'configured': False,
+                            'has_ip': False,
+                            'has_zone': False
+                        }
+                        
+                except Exception as e:
+                    logger.warning(f"Error checking interface {interface} on {device['host']}: {e}")
+                    interfaces_status[interface] = {
+                        'configured': False,
+                        'has_ip': False,
+                        'has_zone': False
+                    }
+            
+            return interfaces_status
             
         except Exception as e:
-            logger.warning(f"Error checking HA config on {device['host']}: {e}")
-            return False
-    
-    def _check_interfaces_config(self, device, headers):
-        """Check general interface configuration."""
-        # Add more interface checks as needed
-        return {}
+            logger.warning(f"Error checking interfaces config on {device['host']}: {e}")
+            return {}
     
     def _check_zones_config(self, device, headers):
         """Check zones configuration."""
