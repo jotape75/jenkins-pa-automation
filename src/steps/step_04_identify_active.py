@@ -12,6 +12,7 @@ import json
 import xml.etree.ElementTree as ET
 import sys
 import os
+import time
 
 # Add the src directory to the Python path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -62,31 +63,58 @@ class Step04_IdentifyActive:
             
             logger.info(f"Identifying active firewall from {len(pa_credentials)} devices")
             
-            try:
-                for device, headers in zip(pa_credentials, api_keys_list):
-                    ha_state_link = f"https://{device['host']}/api/"
-                    ha_state_api = f"{ha_state_link}?type=op&cmd=<show><high-availability><state></state></high-availability></show>"
-                    response_ha_state = requests.get(ha_state_api, headers=headers, verify=False)
-                    if response_ha_state.status_code == 200:
-                        xml_response_state = response_ha_state.text
-                        root = ET.fromstring(xml_response_state)
-                        ha_state = root.find(".//state").text
-                        if ha_state == "active":
-                            self.active_fw_list.append(device)
-                            self.active_fw_headers.append(headers)
-                            break
-                    else:
-                        logger.error(f"Failed to get HA state for {device['host']}: {response_ha_state.status_code}")
-                        
-                logger.info(f"Active firewall: {self.active_fw_list}")
+            # Add retry logic for HA state stability
+            for attempt in range(3):
+                logger.info(f"Attempt {attempt + 1} to identify active firewall")
                 
-            except requests.exceptions.RequestException as e:
-                logger.error(f"KeyError: {e} - 'active_fw' not found in credentials.")
-                return False
+                try:
+                    self.active_fw_list = []
+                    self.active_fw_headers = []
+                    
+                    for device, headers in zip(pa_credentials, api_keys_list):
+                        ha_state_link = f"https://{device['host']}/api/"
+                        ha_state_api = f"{ha_state_link}?type=op&cmd=<show><high-availability><state></state></high-availability></show>"
+                        response_ha_state = requests.get(ha_state_api, headers=headers, verify=False)
+                        if response_ha_state.status_code == 200:
+                            xml_response_state = response_ha_state.text
+                            root = ET.fromstring(xml_response_state)
+                            ha_state_element = root.find(".//state")
+                            
+                            if ha_state_element is not None:
+                                ha_state = ha_state_element.text
+                                logger.info(f"HA state for {device['host']}: {ha_state}")
+                                
+                                if ha_state == "active":
+                                    self.active_fw_list.append(device)
+                                    self.active_fw_headers.append(headers)
+                                    break
+                            else:
+                                logger.warning(f"No HA state element found in response from {device['host']}")
+                        else:
+                            logger.error(f"Failed to get HA state for {device['host']}: {response_ha_state.status_code}")
+                            
+                    logger.info(f"Active firewall: {self.active_fw_list}")
+                    
+                    # If we found an active firewall, break out of retry loop
+                    if self.active_fw_list:
+                        break
+                    
+                    # If this is not the last attempt, wait before retrying
+                    if attempt < 2:
+                        logger.info(f"No active firewall found, waiting 5 seconds before retry...")
+                        time.sleep(5)
+                    
+                except requests.exceptions.RequestException as e:
+                    logger.error(f"RequestException: {e}")
+                    if attempt < 2:
+                        logger.info(f"Request failed, waiting 5 seconds before retry...")
+                        time.sleep(5)
+                    else:
+                        return False
             
             # Validate that we found an active firewall
             if not self.active_fw_list:
-                logger.error("No active firewall found in HA pair")
+                logger.error("No active firewall found in HA pair after 3 attempts")
                 return False
             
             # Save active firewall info for next steps

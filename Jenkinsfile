@@ -22,8 +22,8 @@ pipeline {
                 sh 'python3 src/main.py --step api_keys'
             }
         }
-        
-        stage('Discovery') {
+
+        stage('Current Config Discovery') {
             steps {
                 sh 'python3 src/main.py --step discovery'
             }
