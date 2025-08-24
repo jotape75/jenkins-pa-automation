@@ -82,6 +82,10 @@ def main():
             from steps.step_05_firewall_config import Step05_FirewallConfig
             step = Step05_FirewallConfig()
             success = step.execute()
+        elif args.step == 'commit':
+            from steps.step_10_commit import Step06_CommitSync
+            step = Step06_CommitSync()
+            success = step.execute()
             
         # ... will add more as we create them
         
