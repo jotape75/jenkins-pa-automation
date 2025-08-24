@@ -21,7 +21,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 requests.packages.urllib3.disable_warnings()
 logger = logging.getLogger()
 
-class Step10_Commit:
+class Step06_CommitSync:
     """
     Commit configuration changes and force HA synchronization.
     

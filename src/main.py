@@ -83,7 +83,7 @@ def main():
             step = Step05_FirewallConfig()
             success = step.execute()
         elif args.step == 'commit':
-            from steps.step_10_commit import Step06_CommitSync
+            from steps.step_06_commit import Step06_CommitSync
             step = Step06_CommitSync()
             success = step.execute()
             
