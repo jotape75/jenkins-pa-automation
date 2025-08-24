@@ -74,6 +74,10 @@ def main():
             from steps.step_03_ha_config import Step03_HAConfig
             step = Step03_HAConfig()
             success = step.execute()
+        elif args.step == 'identify_active':
+            from steps.step_04_identify_active import Step04_IdentifyActive
+            step = Step04_IdentifyActive()
+            success = step.execute()
             
         # ... will add more as we create them
         

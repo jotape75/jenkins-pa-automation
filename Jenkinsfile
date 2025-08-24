@@ -40,6 +40,11 @@ pipeline {
                 sh 'python3 src/main.py --step ha_config'
             }
         }
+        stage('Identify Active Firewall') {
+            steps {
+                sh 'python3 src/main.py --step identify_active'
+            }
+        }
     }
     
     post {
