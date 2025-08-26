@@ -2,7 +2,7 @@
     <link-state>up</link-state>
     <layer3>
         <ip>
-            <entry name="10.10.10.5/24"/>
+            <entry name="{ETHERNET1_1_IP_trust}"/>
         </ip>
         <lldp>
             <enable>no</enable>
@@ -16,7 +16,7 @@
     <link-state>up</link-state>
     <layer3>
         <ip>
-            <entry name="200.200.200.2/24"/>
+            <entry name="{ETHERNET1_2_IP_untrust}"/>
         </ip>
         <lldp>
             <enable>no</enable>
@@ -30,7 +30,7 @@
     <link-state>up</link-state>
     <layer3>
         <ip>
-            <entry name="10.30.30.5/24"/>
+            <entry name="{ETHERNET1_3_IP_dmz}"/>
         </ip>
         <lldp>
             <enable>no</enable>

@@ -1,21 +1,21 @@
 <entry name="trust">
     <network>
         <layer3>
-            <member>ethernet1/1</member>
+            <member>{trust}</member>
         </layer3>
     </network>
 </entry>
 <entry name="untrust">
     <network>
         <layer3>
-            <member>ethernet1/2</member>
+            <member>{untrust}</member>
         </layer3>
     </network>
 </entry>
 <entry name="dmz">
     <network>
         <layer3>
-            <member>ethernet1/3</member>
+            <member>{dmz}</member>
         </layer3>
     </network>
 </entry>

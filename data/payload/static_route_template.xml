@@ -1,8 +1,8 @@
-<destination>0.0.0.0/0</destination>
+<destination>{STATIC_ROUTE_NETWORK}</destination>
 <nexthop>
-    <ip-address>10.20.20.1</ip-address>
+    <ip-address>{STATIC_ROUTE_NEXTHOP}</ip-address>
 </nexthop>
-<interface>ethernet1/2</interface>
+<interface>{untrust}</interface>
 <metric>10</metric>
 <route-table>
     <unicast/>
