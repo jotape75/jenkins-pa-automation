@@ -2,17 +2,6 @@ pipeline {
     agent any
     
     parameters {
-        // Network Diagram Reference
-        text(
-            name: 'NETWORK_DIAGRAM',
-            defaultValue: '',
-            description: '''
-            <img src="https://raw.githubusercontent.com/jotape75/jenkins-pa-automation/main/docs/PA_diagram.png" 
-                 alt="Palo Alto Network Diagram" 
-                 style="max-width: 600px; height: auto; border: 1px solid #ccc; margin: 10px 0;">
-            '''
-        )
-        
         // HA Interface Configuration
         choice(
             name: 'HA1_INTERFACE',
