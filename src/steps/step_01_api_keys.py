@@ -3,6 +3,7 @@ Step 1: API Key Generation for PA Firewalls
 
 Extracts the get_api_key logic from PaloAltoFirewall_HA class
 and adapts it for Jenkins execution without state manager.
+Now uses dynamic credentials from Jenkins form parameters.
 """
 
 import requests
@@ -24,7 +25,7 @@ class Step01_APIKeys:
     """
     Generate API keys for all PA firewall devices.
     
-    Direct extraction from PaloAltoFirewall_HA.get_api_key() method.
+    Uses credentials and firewall hosts from Jenkins form parameters.
     """
     
     def __init__(self):
@@ -35,20 +36,55 @@ class Step01_APIKeys:
             "Content-Type": "application/json",
         }
     
+    def _get_credentials_from_jenkins(self):
+        """
+        Get firewall credentials from Jenkins environment variables.
+        
+        Returns:
+            list: List of firewall credentials
+        """
+        try:
+            # Get credentials from Jenkins form parameters
+            username = os.getenv('USERNAME')
+            password = os.getenv('PASSWORD')
+            firewall_hosts = os.getenv('FIREWALL_HOSTS')
+            
+            if not username or not password or not firewall_hosts:
+                raise Exception("USERNAME, PASSWORD, and FIREWALL_HOSTS must be specified in Jenkins form")
+            
+            # Parse firewall hosts
+            hosts = [host.strip() for host in firewall_hosts.split(',')]
+            
+            # Create credentials list
+            pa_credentials = []
+            for host in hosts:
+                pa_credentials.append({
+                    'host': host,
+                    'username': username,
+                    'password': password
+                })
+            
+            logger.info(f"Loaded credentials for {len(pa_credentials)} firewalls from Jenkins parameters")
+            logger.info(f"Firewall hosts: {[cred['host'] for cred in pa_credentials]}")
+            logger.info(f"Username: {username}")
+            
+            return pa_credentials
+            
+        except Exception as e:
+            logger.error(f"Error getting credentials from Jenkins: {e}")
+            raise
+    
     def execute(self):
         """
         Execute API key generation for all devices.
-        Uses the exact logic from your original get_api_key() method.
+        Uses credentials from Jenkins form parameters.
         
         Returns:
             bool: True if successful, False otherwise
         """
         try:
-            # Load configuration directly using constants - fix the import
-            from utils_pa import PA_CREDS_FILE
-            
-            with open(PA_CREDS_FILE, 'r') as f:
-                pa_credentials = json.load(f)
+            # Get credentials from Jenkins form parameters
+            pa_credentials = self._get_credentials_from_jenkins()
             
             # Initialize lists (from your original __init__)
             rest_api_keys_list = []
@@ -62,31 +98,45 @@ class Step01_APIKeys:
                     # API key request URL
                     get_api_keys = f"https://{device['host']}/api/?type=keygen&user={device['username']}&password={device['password']}"
 
-                    response_api_key = requests.get(get_api_keys, headers=self.rest_api_headers, verify=False)
+                    logger.info(f"Requesting API key for {device['host']} with user {device['username']}")
+                    
+                    response_api_key = requests.get(get_api_keys, headers=self.rest_api_headers, verify=False, timeout=30)
+                    
                     if response_api_key.status_code == 200:
                         # Parse the XML response
                         xml_response = response_api_key.text
-                        PA_api_key = xml_response.split("<key>")[1].split("</key>")[0]
+                        logger.info(f"API key response for {device['host']}: {xml_response}")
                         
-                        rest_headers = {
-                            "Content-Type": "application/json",
-                            "X-PAN-KEY": PA_api_key
-                        }
-                        xml_headers = {
-                            "Content-Type": "application/xml",
-                            "X-PAN-KEY": PA_api_key
-                        }
-                        rest_api_keys_list.append(rest_headers)
-                        api_keys_list.append(xml_headers)
-                        
-                        logger.info(f"API key generated for {device['host']}")
+                        # Check if response contains an error
+                        if "<key>" in xml_response and "</key>" in xml_response:
+                            PA_api_key = xml_response.split("<key>")[1].split("</key>")[0]
+                            
+                            rest_headers = {
+                                "Content-Type": "application/json",
+                                "X-PAN-KEY": PA_api_key
+                            }
+                            xml_headers = {
+                                "Content-Type": "application/xml",
+                                "X-PAN-KEY": PA_api_key
+                            }
+                            rest_api_keys_list.append(rest_headers)
+                            api_keys_list.append(xml_headers)
+                            
+                            logger.info(f"API key generated successfully for {device['host']}")
+                        else:
+                            logger.error(f"No API key found in response for {device['host']}: {xml_response}")
+                            return False
 
                     else:
-                        logger.error(f"Failed to get API key. Status code: {response_api_key.status_code}")
+                        logger.error(f"Failed to get API key for {device['host']}. Status code: {response_api_key.status_code}")
+                        logger.error(f"Response text: {response_api_key.text}")
                         return False
                         
                 except requests.exceptions.RequestException as e:
-                    logger.error(f"Error occurred while making the API request: {e}")
+                    logger.error(f"Error occurred while making API request to {device['host']}: {e}")
+                    return False
+                except Exception as e:
+                    logger.error(f"Unexpected error processing {device['host']}: {e}")
                     return False
             
             # Save to simple file for next steps to use
@@ -99,7 +149,9 @@ class Step01_APIKeys:
             with open('api_keys_data.pkl', 'wb') as f:
                 pickle.dump(api_data, f)
             
-            logger.info(f"Successfully generated API keys for {len(api_keys_list)} devices")
+            logger.info(f"Successfully generated and saved API keys for {len(api_keys_list)} devices")
+            logger.info(f"API keys saved to api_keys_data.pkl")
+            
             return True
             
         except Exception as e:
