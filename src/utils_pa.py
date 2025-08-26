@@ -17,29 +17,26 @@ PROJECT_ROOT = get_project_root()
 DATA_DIR = PROJECT_ROOT / "data" # navigate to data directory
 PAYLOAD_DIR = DATA_DIR / "payload" # navigate to payload directory
 
-# File paths as constants (no external JSON dependency)
-# Updated template paths
+# File paths CONSTANTS
+
 PA_INTERFACE_TEMPLATE = f"{get_project_root()}/data/payload/data_interface.xml"
-PA_HA_INTERFACE_TEMPLATE = f"{get_project_root()}/data/payload/data_ha_interface.xml"
-PA_ZONES_TEMPLATE = f"{get_project_root()}/data/payload/data_zones.xml"
-PA_ROUTER_TEMPLATE = f"{get_project_root()}/data/payload/data_router.xml"
-PA_ROUTES_TEMPLATE = f"{get_project_root()}/data/payload/data_routes.xml"
-PA_SECURITY_TEMPLATE = f"{get_project_root()}/data/payload/data_security.xml"
-PA_NAT_TEMPLATE = f"{get_project_root()}/data/payload/data_nat.xml"
+PA_HA_INTERFACE_TEMPLATE = f"{get_project_root()}/data/payload/paloalto_interface_ha_template.xml"
+PA_HA_CONFIG_TEMPLATE = f"{get_project_root()}/data/payload/paloalto_ha_template_config.xml"
+PA_ZONES_TEMPLATE = f"{get_project_root()}/data/payload/zones.xml"
+PA_ROUTER_TEMPLATE = f"{get_project_root()}/data/payload/virtual_router_template.xml"
+PA_ROUTES_TEMPLATE = f"{get_project_root()}/data/payload/static_route_template.xml"
+PA_SECURITY_TEMPLATE = f"{get_project_root()}/data/payload/security_policy_template.xml"
+PA_NAT_TEMPLATE = f"{get_project_root()}/data/payload/source_nat_template.xml"
 
 def file_path():
     """
-    Load configurations and return file paths.
+    Return file paths for templates.
     No external JSON dependency - more reliable for Jenkins.
+    Credentials are now handled by Jenkins parameters, not files.
     """
-    # Load PA credentials directly
-    with open(PA_CREDS_FILE, 'r') as f:
-        pa_credentials = json.load(f)
-    
     return (
-        pa_credentials,
         str(PA_HA_CONFIG_TEMPLATE),
-        str(PA_HA_INT_TEMPLATE),
+        str(PA_HA_INTERFACE_TEMPLATE),  
         str(PA_INTERFACE_TEMPLATE),
         str(PA_ZONES_TEMPLATE),
         str(PA_ROUTER_TEMPLATE),
