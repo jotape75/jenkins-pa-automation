@@ -15,29 +15,29 @@ pipeline {
         
         // HA Interface Configuration
         choice(
-            name: 'HA_INTERFACE_1',
+            name: 'HA1_INTERFACE',
             choices: ['ethernet1/4', 'ethernet1/5', 'ethernet1/6', 'ethernet1/7'],
-            description: 'First HA Interface'
+            description: 'Control Links'
         )
         choice(
-            name: 'HA_INTERFACE_2', 
+            name: 'HA2_INTERFACE', 
             choices: ['ethernet1/5', 'ethernet1/6', 'ethernet1/7', 'ethernet1/8'],
-            description: 'Second HA Interface'
+            description: 'Data Links'
         )
         
         // Data Interface IP Addresses
         string(
-            name: 'ETHERNET1_1_IP',
+            name: 'ETHERNET1_1_IP_trust',
             defaultValue: '',
             description: 'Ethernet1/1 IP Address (CIDR format) - Example: 10.10.10.5/24'
         )
         string(
-            name: 'ETHERNET1_2_IP',
+            name: 'ETHERNET1_2_IP_untrust',
             defaultValue: '', 
             description: 'Ethernet1/2 IP Address (CIDR format) - Example: 200.200.200.2/24'
         )
         string(
-            name: 'ETHERNET1_3_IP',
+            name: 'ETHERNET1_3_IP_dmz',
             defaultValue: '',
             description: 'Ethernet1/3 IP Address (CIDR format) - Example: 10.30.30.5/24'
         )
@@ -68,19 +68,19 @@ pipeline {
         
         // Security Zone Configuration  
         string(
-            name: 'INTERNAL_ZONE_INTERFACE',
+            name: 'trust',
             defaultValue: 'ethernet1/1',
-            description: 'Internal Zone Interface'
+            description: 'Trust Zone'
         )
         string(
-            name: 'EXTERNAL_ZONE_INTERFACE', 
+            name: 'untrust', 
             defaultValue: 'ethernet1/2',
-            description: 'External Zone Interface'
+            description: 'Untrust Zone'
         )
         string(
-            name: 'DMZ_ZONE_INTERFACE',
+            name: 'dmz',
             defaultValue: 'ethernet1/3', 
-            description: 'DMZ Zone Interface'
+            description: 'DMZ Zone'
         )
         
         // Firewall Device Configuration
@@ -91,12 +91,10 @@ pipeline {
         )
         string(
             name: 'USERNAME',
-            defaultValue: 'admin',
             description: 'Firewall Username'
         )
         password(
             name: 'PASSWORD',
-            defaultValue: 'admin',
             description: 'Firewall Password'
         )
     }
@@ -123,18 +121,18 @@ pipeline {
                     echo "Updating XML templates with Jenkins parameters..."
                     
                     // Export Jenkins parameters as environment variables
-                    env.HA_INTERFACE_1 = params.HA_INTERFACE_1
-                    env.HA_INTERFACE_2 = params.HA_INTERFACE_2
-                    env.ETHERNET1_1_IP = params.ETHERNET1_1_IP
-                    env.ETHERNET1_2_IP = params.ETHERNET1_2_IP
-                    env.ETHERNET1_3_IP = params.ETHERNET1_3_IP
+                    env.HA1_INTERFACE = params.HA1_INTERFACE
+                    env.HA2_INTERFACE = params.HA2_INTERFACE
+                    env.ETHERNET1_1_IP_trust = params.ETHERNET1_1_IP_trust
+                    env.ETHERNET1_2_IP_untrust = params.ETHERNET1_2_IP_untrust
+                    env.ETHERNET1_3_IP_dmz = params.ETHERNET1_3_IP_dmz
                     env.DEFAULT_GATEWAY = params.DEFAULT_GATEWAY
                     env.STATIC_ROUTE_NETWORK = params.STATIC_ROUTE_NETWORK
                     env.STATIC_ROUTE_NEXTHOP = params.STATIC_ROUTE_NEXTHOP
                     env.SOURCE_NAT_IP = params.SOURCE_NAT_IP
-                    env.INTERNAL_ZONE_INTERFACE = params.INTERNAL_ZONE_INTERFACE
-                    env.EXTERNAL_ZONE_INTERFACE = params.EXTERNAL_ZONE_INTERFACE
-                    env.DMZ_ZONE_INTERFACE = params.DMZ_ZONE_INTERFACE
+                    env.trust = params.trust
+                    env.untrust = params.untrust
+                    env.dmz = params.dmz
                     env.FIREWALL_HOSTS = params.FIREWALL_HOSTS
                     env.USERNAME = params.USERNAME
                     env.PASSWORD = params.PASSWORD
@@ -144,8 +142,9 @@ pipeline {
                     
                     // Show what was configured
                     echo "Configuration Summary:"
-                    echo "HA Interfaces: ${params.HA_INTERFACE_1}, ${params.HA_INTERFACE_2}"
-                    echo "Data Interface IPs: ${params.ETHERNET1_1_IP}, ${params.ETHERNET1_2_IP}, ${params.ETHERNET1_3_IP}"
+                    echo "HA Interfaces: ${params.HA1_INTERFACE} (Control), ${params.HA2_INTERFACE} (Data)"
+                    echo "Data Interface IPs: ${params.ETHERNET1_1_IP_trust}, ${params.ETHERNET1_2_IP_untrust}, ${params.ETHERNET1_3_IP_dmz}"
+                    echo "Security Zones: Trust=${params.trust}, Untrust=${params.untrust}, DMZ=${params.dmz}"
                     echo "Default Gateway: ${params.DEFAULT_GATEWAY}"
                     echo "Source NAT IP: ${params.SOURCE_NAT_IP}"
                     echo "Firewall Hosts: ${params.FIREWALL_HOSTS}"
@@ -224,14 +223,15 @@ pipeline {
         success {
             echo "PA Automation completed successfully!"
             echo "Configuration deployed with parameters:"
-            echo "- HA Interfaces: ${params.HA_INTERFACE_1}, ${params.HA_INTERFACE_2}"
+            echo "- HA Interfaces: ${params.HA1_INTERFACE} (Control), ${params.HA2_INTERFACE} (Data)"
+            echo "- Security Zones: Trust=${params.trust}, Untrust=${params.untrust}, DMZ=${params.dmz}"
             echo "- Gateway: ${params.DEFAULT_GATEWAY}"
             echo "- NAT IP: ${params.SOURCE_NAT_IP}"
         }
         failure {
             echo "PA Automation failed. Check logs for details."
             echo "Failed with parameters:"
-            echo "- HA Interfaces: ${params.HA_INTERFACE_1}, ${params.HA_INTERFACE_2}"
+            echo "- HA Interfaces: ${params.HA1_INTERFACE}, ${params.HA2_INTERFACE}"
             echo "- Firewall Hosts: ${params.FIREWALL_HOSTS}"
         }
     }

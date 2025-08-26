@@ -3,6 +3,7 @@ Step 2: Enable HA Interfaces for PA Firewalls
 
 Extracts the enable_HA_interfaces logic from PaloAltoFirewall_HA class
 and adapts it for Jenkins execution with discovery-based checking.
+Uses HA interfaces directly from Jenkins form parameters.
 """
 
 import requests
@@ -22,7 +23,8 @@ logger = logging.getLogger()
 
 class Step02_HAInterfaces:
     """
-    Enable HA interfaces (ethernet1/4 and ethernet1/5) on all devices.
+    Enable HA interfaces dynamically based on Jenkins form parameters.
+    User specifies which interfaces to use via Jenkins form.
     
     Uses discovery data to check current status instead of making API calls.
     """
@@ -62,14 +64,21 @@ class Step02_HAInterfaces:
                 api_keys_list = api_data['api_keys_list']
                 device_status = None
             
-            logger.info(f"Enabling HA interfaces for {len(pa_credentials)} devices")
+            # Get HA interfaces from Jenkins form parameters
+            ha_interface_1 = os.getenv('HA_INTERFACE_1')
+            ha_interface_2 = os.getenv('HA_INTERFACE_2')
+            
+            if not ha_interface_1 or not ha_interface_2:
+                raise Exception("HA interfaces must be specified in Jenkins form parameters")
+            
+            interfaces = [ha_interface_1, ha_interface_2]
+            logger.info(f"Using HA interfaces from Jenkins form: {interfaces}")
             
             changes_made = False
             
             # Configure HA interfaces on each device
             for device, headers in zip(pa_credentials, api_keys_list):
                 host = device['host']
-                interfaces = ['ethernet1/4', 'ethernet1/5']
                 device_changes = False
                 
                 try:
@@ -132,6 +141,7 @@ class Step02_HAInterfaces:
             # Save completion status for next steps
             step_data = {
                 'ha_interfaces_enabled': True,
+                'ha_interfaces_used': interfaces,
                 'changes_made': changes_made,
                 'pa_credentials': pa_credentials,
                 'api_keys_list': api_keys_list
@@ -140,7 +150,7 @@ class Step02_HAInterfaces:
             with open('ha_interfaces_data.pkl', 'wb') as f:
                 pickle.dump(step_data, f)
             
-            logger.info("HA interfaces enablement completed successfully")
+            logger.info(f"HA interfaces enablement completed successfully using: {interfaces}")
             return True
             
         except Exception as e:
@@ -155,7 +165,7 @@ class Step02_HAInterfaces:
         Args:
             device: Device credentials
             headers: API headers with key
-            interface: Interface name (e.g., 'ethernet1/4')
+            interface: Interface name (e.g., 'ethernet1/6')
             
         Returns:
             bool: True if already configured as HA, False otherwise
