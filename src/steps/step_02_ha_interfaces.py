@@ -65,12 +65,12 @@ class Step02_HAInterfaces:
                 device_status = None
             
             # Get HA interfaces from Jenkins form parameters
-            ha_interface_1 = os.getenv('HA_INTERFACE_1')
-            ha_interface_2 = os.getenv('HA_INTERFACE_2')
-            
+            ha_interface_1 = os.getenv('HA1_INTERFACE')      # ← Changed from 'HA_INTERFACE_1'
+            ha_interface_2 = os.getenv('HA2_INTERFACE')      # ← Changed from 'HA_INTERFACE_2'
+
             if not ha_interface_1 or not ha_interface_2:
                 raise Exception("HA interfaces must be specified in Jenkins form parameters")
-            
+
             interfaces = [ha_interface_1, ha_interface_2]
             logger.info(f"Using HA interfaces from Jenkins form: {interfaces}")
             

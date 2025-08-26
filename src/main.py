@@ -59,11 +59,6 @@ def main():
             from steps.step_01_api_keys import Step01_APIKeys
             step = Step01_APIKeys()
             success = step.execute()
-
-        elif args.step == 'discovery':
-            from steps.step_00_discovery import Step00_Discovery
-            step = Step00_Discovery()
-            success = step.execute()
             
         elif args.step == 'ha_interfaces':
             from steps.step_02_ha_interfaces import Step02_HAInterfaces
