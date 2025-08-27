@@ -95,11 +95,12 @@ pipeline {
         // Firewall Device Configuration
         string(
             name: 'FIREWALL_HOSTS',
-            defaultValue: '192.168.0.225,192.168.0.226',
+            defaultValue: '192.168.0.226,192.168.0.227',
             description: 'Firewall IP Addresses (comma-separated)'
         ),
         string(
             name: 'USERNAME',
+            defaultValue: 'admin',
             description: 'Firewall Username'
         ),
         password(
