@@ -31,7 +31,7 @@ pipeline {
         string(
             name: 'HA_PEER_IP_2',
             defaultValue: '1.1.1.1',
-            description: 'HA Peer IP for second firewall'
+            description: 'HA Per IP for second firewall'
         ),
         
         // Data Interface IP Addresses
