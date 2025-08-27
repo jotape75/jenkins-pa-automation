@@ -8,7 +8,7 @@ pipeline {
             description: 'Control Links'
         ),
         choice(
-            name: 'HA2_INTERFACE', 
+            name: 'HA2_INTERFACE',
             choices: ['ethernet1/5', 'ethernet1/6', 'ethernet1/7', 'ethernet1/8'],
             description: 'Data Links'
         ),
@@ -19,7 +19,7 @@ pipeline {
         ),
         string(
             name: 'HA1_IP_2',
-            defaultValue: '1.1.1.2', 
+            defaultValue: '1.1.1.2',
             description: 'HA1 Interface IP for second firewall'
         ),
         string(
@@ -39,7 +39,7 @@ pipeline {
         ),
         string(
             name: 'ETHERNET1_2_IP_untrust',
-            defaultValue: '', 
+            defaultValue: '',
             description: 'Ethernet1/2 IP Address (CIDR format) - Example: 200.200.200.2/24'
         ),
         string(
@@ -73,13 +73,13 @@ pipeline {
             description: 'Trust Zone'
         ),
         string(
-            name: 'untrust', 
+            name: 'untrust',
             defaultValue: 'ethernet1/2',
             description: 'Untrust Zone'
         ),
         string(
             name: 'dmz',
-            defaultValue: 'ethernet1/3', 
+            defaultValue: 'ethernet1/3',
             description: 'DMZ Zone'
         ),
         string(
@@ -102,7 +102,7 @@ pipeline {
         stage('Pull Repository & Setup') {
             steps {
                 cleanWs()
-                git branch: 'main', 
+                git branch: 'main',
                     url: 'https://github.com/jotape75/jenkins-pa-automation.git'
                     
                 sh '''
@@ -230,3 +230,4 @@ pipeline {
             echo "- Firewall Hosts: ${params.FIREWALL_HOSTS}"
         }
     }
+}  
