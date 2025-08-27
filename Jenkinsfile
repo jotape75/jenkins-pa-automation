@@ -2,7 +2,6 @@ pipeline {
     agent any
     
     parameters {
-        // HA Interface Configuration
         choice(
             name: 'HA1_INTERFACE',
             choices: ['ethernet1/4', 'ethernet1/5', 'ethernet1/6', 'ethernet1/7'],
@@ -33,8 +32,6 @@ pipeline {
             defaultValue: '1.1.1.1',
             description: 'HA Peer IP for second firewall'
         ),
-        
-        // Data Interface IP Addresses
         string(
             name: 'ETHERNET1_1_IP_trust',
             defaultValue: '',
@@ -50,8 +47,6 @@ pipeline {
             defaultValue: '',
             description: 'Ethernet1/3 IP Address (CIDR format) - Example: 10.30.30.5/24'
         ),
-        
-        // Gateway/Routing Configuration
         string(
             name: 'DEFAULT_GATEWAY',
             defaultValue: '',
@@ -67,15 +62,11 @@ pipeline {
             defaultValue: '',
             description: 'Static Route Next Hop IP - Example: 10.10.10.1'
         ),
-        
-        // NAT Configuration
         string(
             name: 'SOURCE_NAT_IP',
             defaultValue: '',
             description: 'Source NAT IP Address - Example: 200.200.200.10'
         ),
-        
-        // Security Zone Configuration  
         string(
             name: 'trust',
             defaultValue: 'ethernet1/1',
@@ -91,8 +82,6 @@ pipeline {
             defaultValue: 'ethernet1/3', 
             description: 'DMZ Zone'
         ),
-        
-        // Firewall Device Configuration
         string(
             name: 'FIREWALL_HOSTS',
             defaultValue: '192.168.0.226,192.168.0.227',
@@ -130,7 +119,6 @@ pipeline {
                 script {
                     echo "Updating XML templates with Jenkins parameters..."
                     
-                    // Export Jenkins parameters as environment variables
                     env.HA1_INTERFACE = params.HA1_INTERFACE
                     env.HA2_INTERFACE = params.HA2_INTERFACE
                     env.HA1_IP_1 = params.HA1_IP_1
@@ -151,10 +139,8 @@ pipeline {
                     env.USERNAME = params.USERNAME
                     env.PASSWORD = params.PASSWORD
                     
-                    // Update XML templates with parameters
                     sh 'python3 src/update_templates.py'
                     
-                    // Show what was configured
                     echo "Configuration Summary:"
                     echo "HA Interfaces: ${params.HA1_INTERFACE} (Control), ${params.HA2_INTERFACE} (Data)"
                     echo "HA IP Addresses: ${params.HA1_IP_1}, ${params.HA1_IP_2}"
@@ -207,7 +193,6 @@ pipeline {
         stage('Archive Updated Templates') {
             steps {
                 script {
-                    // Archive the generated templates for audit
                     sh '''
                         echo "Generated template files:"
                         ls -la data/payload/ || echo "Payload directory not found"
@@ -221,11 +206,9 @@ pipeline {
     
     post {
         always {
-            // Archive logs and generated templates
             archiveArtifacts artifacts: 'log/*.log', allowEmptyArchive: true
             archiveArtifacts artifacts: 'data/payload/*.xml', allowEmptyArchive: true
             
-            // Cleanup sensitive environment variables
             script {
                 env.PASSWORD = ""
             }
@@ -247,4 +230,3 @@ pipeline {
             echo "- Firewall Hosts: ${params.FIREWALL_HOSTS}"
         }
     }
-}
