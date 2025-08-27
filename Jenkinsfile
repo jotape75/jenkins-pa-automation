@@ -11,7 +11,7 @@ pipeline {
             name: 'HA2_INTERFACE',
             choices: ['ethernet1/5', 'ethernet1/6', 'ethernet1/7', 'ethernet1/8'],
             description: 'Data Links'
-        ),
+        )
         string(
             name: 'HA1_IP_1',
             defaultValue: '1.1.1.1',
@@ -230,4 +230,4 @@ pipeline {
             echo "- Firewall Hosts: ${params.FIREWALL_HOSTS}"
         }
     }
-}  
+}
