@@ -1,15 +1,12 @@
 """
 Step 5: Complete Firewall Configuration on Active Device
 
-Combines interface, zone, routing, security policy, and NAT configuration
-into a single comprehensive step for cleaner Jenkins pipeline view.
+For fresh deployments - always applies all configuration without checking existing status.
 """
 
 import requests
 import logging
 import pickle
-import json
-import xml.etree.ElementTree as ET
 import sys
 import os
 
@@ -23,82 +20,59 @@ logger = logging.getLogger()
 class Step05_FirewallConfig:
     """
     Complete firewall configuration on active device.
-    
-    Performs all configuration steps in sequence:
-    - Interface configuration
-    - Zone configuration  
-    - Routing configuration
-    - Security policy configuration
-    - Source NAT configuration
+    Fresh deployment - always applies all configuration.
     """
     
     def __init__(self):
-        """
-        Initialize firewall configuration step.
-        """
         pass
     
     def execute(self):
         """
         Execute complete firewall configuration.
+        Fresh start - no status checks, always apply all configuration.
         
         Returns:
             bool: True if successful, False otherwise
         """
         try:
             # Load active firewall data from previous step
-            try:
-                with open('active_fw_data.pkl', 'rb') as f:
-                    active_fw_data = pickle.load(f)
-                
-                active_fw_list = active_fw_data['active_fw_list']
-                active_fw_headers = active_fw_data['active_fw_headers']
-                logger.info("Using active firewall data for complete configuration")
-                
-            except FileNotFoundError:
-                logger.error("Active firewall data not found. Run identify_active step first.")
-                return False
+            with open('active_fw_data.pkl', 'rb') as f:
+                active_fw_data = pickle.load(f)
             
-            # Load discovery data for smart configuration decisions
-            discovery_data = None
-            try:
-                with open('discovery_data.pkl', 'rb') as f:
-                    discovery_data = pickle.load(f)
-                logger.info("Using discovery data for intelligent configuration decisions")
-            except FileNotFoundError:
-                logger.warning("Discovery data not found, proceeding with full configuration")
+            active_fw_list = active_fw_data['active_fw_list']
+            active_fw_headers = active_fw_data['active_fw_headers']
+            logger.info("Fresh deployment - applying complete firewall configuration")
             
             active_host = active_fw_list[0]['host']
             active_key = active_fw_headers[0]['X-PAN-KEY']
-            logger.info(f"Configuring firewall: {active_host}")
-            
-            # Get existing configuration status from discovery
-            existing_config = {}
-            if discovery_data and active_host in discovery_data['device_status']:
-                existing_config = discovery_data['device_status'][active_host]
-                logger.info(f"Found existing configuration status for {active_host}")
+            logger.info(f"Configuring firewall: {active_host} (fresh configuration)")
             
             # Execute all configuration steps in sequence
             config_results = {}
             
             # Step 5.1: Interface Configuration
-            if not self._configure_interfaces(active_host, active_key, existing_config.get('interfaces', {}), config_results):
+            logger.info("=== STEP 5.1: Interface Configuration ===")
+            if not self._configure_interfaces(active_host, active_key, config_results):
                 return False
                 
             # Step 5.2: Zone Configuration
-            if not self._configure_zones(active_host, active_key, existing_config.get('zones', {}), config_results):
+            logger.info("=== STEP 5.2: Zone Configuration ===")
+            if not self._configure_zones(active_host, active_key, config_results):
                 return False
                 
             # Step 5.3: Routing Configuration
-            if not self._configure_routing(active_host, active_key, existing_config.get('routing', {}), config_results):
+            logger.info("=== STEP 5.3: Routing Configuration ===")
+            if not self._configure_routing(active_host, active_key, config_results):
                 return False
                 
             # Step 5.4: Security Policy Configuration
-            if not self._configure_security_policies(active_host, active_key, existing_config.get('security_policies', {}), config_results):
+            logger.info("=== STEP 5.4: Security Policy Configuration ===")
+            if not self._configure_security_policies(active_host, active_key, config_results):
                 return False
                 
             # Step 5.5: Source NAT Configuration
-            if not self._configure_source_nat(active_host, active_key, existing_config.get('nat_rules', {}), config_results):
+            logger.info("=== STEP 5.5: Source NAT Configuration ===")
+            if not self._configure_source_nat(active_host, active_key, config_results):
                 return False
             
             # Save completion status for next steps
@@ -107,39 +81,35 @@ class Step05_FirewallConfig:
                 'config_results': config_results,
                 'active_fw_list': active_fw_list,
                 'active_fw_headers': active_fw_headers,
-                'firewall_configuration_completed': True
+                'firewall_configuration_completed': True,
+                'configured_host': active_host
             }
             
             with open('firewall_config_data.pkl', 'wb') as f:
                 pickle.dump(step_data, f)
             
-            logger.info("Complete firewall configuration completed successfully")
+            logger.info("=== FIREWALL CONFIGURATION COMPLETED ===")
             logger.info(f"Configuration summary: {config_results}")
+            logger.info(f"Configured firewall: {active_host}")
             return True
             
         except Exception as e:
             logger.error(f"Unexpected error in firewall configuration: {e}")
             return False
     
-    def _configure_interfaces(self, host, api_key, existing_interfaces, results):
-        """Configure interfaces - with discovery-based checking"""
+    def _configure_interfaces(self, host, api_key, results):
+        """Configure interfaces - fresh deployment, always apply"""
         try:
-            logger.info("Configuring interfaces...")
-            
-            # Check if interfaces are already configured
-            if existing_interfaces:
-                configured_count = sum(1 for iface in existing_interfaces.values() if iface.get('configured', False))
-                if configured_count > 0:
-                    logger.info(f"Found {configured_count} already configured interfaces - skipping interface configuration")
-                    results['interfaces'] = 'skipped'
-                    return True
+            logger.info("Configuring interfaces (fresh deployment)...")
             
             # Load interface template
             from utils_pa import PA_INTERFACE_TEMPLATE
             with open(PA_INTERFACE_TEMPLATE, 'r') as f:
                 pa_interface_tmp = f.read()
             
-            interface_xpath = f"/config/devices/entry[@name='localhost.localdomain']/network/interface/ethernet"
+            logger.info(f"Loaded interface template: {len(pa_interface_tmp)} characters")
+            
+            interface_xpath = "/config/devices/entry[@name='localhost.localdomain']/network/interface/ethernet"
             config_url = f"https://{host}/api/"
             interface_params = {
                 'type': 'config',
@@ -149,14 +119,16 @@ class Step05_FirewallConfig:
                 'key': api_key
             }
 
-            response = requests.get(config_url, params=interface_params, verify=False)
+            response = requests.get(config_url, params=interface_params, verify=False, timeout=30)
             
             if response.status_code == 200:
-                logger.info(f"Interfaces configured successfully")
+                logger.info("Interfaces configured successfully")
+                logger.debug(f"Response: {response.text}")
                 results['interfaces'] = 'success'
                 return True
             else:
                 logger.error(f"Failed to configure interfaces: {response.status_code}")
+                logger.error(f"Response: {response.text}")
                 results['interfaces'] = 'failed'
                 return False
                 
@@ -165,23 +137,19 @@ class Step05_FirewallConfig:
             results['interfaces'] = 'error'
             return False
     
-    def _configure_zones(self, host, api_key, existing_zones, results):
-        """Configure zones - with discovery-based checking"""
+    def _configure_zones(self, host, api_key, results):
+        """Configure zones - fresh deployment, always apply"""
         try:
-            logger.info("Configuring zones...")
-            
-            # Check if zones are already configured
-            if existing_zones:
-                logger.info(f"Found {len(existing_zones)} existing zones: {list(existing_zones.keys())} - skipping zone configuration")
-                results['zones'] = 'skipped'
-                return True
+            logger.info("Configuring zones (fresh deployment)...")
             
             # Load zones template
             from utils_pa import PA_ZONES_TEMPLATE
             with open(PA_ZONES_TEMPLATE, 'r') as f:
                 pa_zones_tmp = f.read()
             
-            zones_xpath = f"/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/zone"
+            logger.info(f"Loaded zones template: {len(pa_zones_tmp)} characters")
+            
+            zones_xpath = "/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/zone"
             config_url = f"https://{host}/api/"
             zones_params = {
                 'type': 'config',
@@ -191,14 +159,16 @@ class Step05_FirewallConfig:
                 'key': api_key
             }
 
-            response = requests.get(config_url, params=zones_params, verify=False)
+            response = requests.get(config_url, params=zones_params, verify=False, timeout=30)
             
             if response.status_code == 200:
-                logger.info(f"Zones configured successfully")
+                logger.info("Zones configured successfully")
+                logger.debug(f"Response: {response.text}")
                 results['zones'] = 'success'
                 return True
             else:
                 logger.error(f"Failed to configure zones: {response.status_code}")
+                logger.error(f"Response: {response.text}")
                 results['zones'] = 'failed'
                 return False
                 
@@ -207,18 +177,10 @@ class Step05_FirewallConfig:
             results['zones'] = 'error'
             return False
     
-    def _configure_routing(self, host, api_key, existing_routing, results):
-        """Configure routing - with discovery-based checking"""
+    def _configure_routing(self, host, api_key, results):
+        """Configure routing - fresh deployment, always apply"""
         try:
-            logger.info("Configuring routing...")
-            
-            # Check if routing is already configured
-            if existing_routing:
-                configured_routers = [name for name, config in existing_routing.items() if config.get('configured', False)]
-                if configured_routers:
-                    logger.info(f"Found {len(configured_routers)} configured virtual routers: {configured_routers} - skipping routing configuration")
-                    results['routing'] = 'skipped'
-                    return True
+            logger.info("Configuring routing (fresh deployment)...")
             
             # Load routing templates
             from utils_pa import PA_ROUTER_TEMPLATE, PA_ROUTES_TEMPLATE
@@ -227,10 +189,13 @@ class Step05_FirewallConfig:
             with open(PA_ROUTES_TEMPLATE, 'r') as f:
                 pa_static_routes_tmp = f.read()
             
+            logger.info(f"Loaded router template: {len(pa_route_settings_tmp)} characters")
+            logger.info(f"Loaded routes template: {len(pa_static_routes_tmp)} characters")
+            
             config_url = f"https://{host}/api/"
             
             # Configure route settings
-            route_settings_xpath = f"/config/devices/entry[@name='localhost.localdomain']/network/virtual-router"
+            route_settings_xpath = "/config/devices/entry[@name='localhost.localdomain']/network/virtual-router"
             route_settings_params = {
                 'type': 'config',
                 'action': 'set',
@@ -239,15 +204,18 @@ class Step05_FirewallConfig:
                 'key': api_key
             }
 
-            response_settings = requests.get(config_url, params=route_settings_params, verify=False)
+            response_settings = requests.get(config_url, params=route_settings_params, verify=False, timeout=30)
             
             if response_settings.status_code != 200:
                 logger.error(f"Failed to configure route settings: {response_settings.status_code}")
+                logger.error(f"Response: {response_settings.text}")
                 results['routing'] = 'failed'
                 return False
             
+            logger.info("Virtual router configured successfully")
+            
             # Configure static routes
-            static_routes_xpath = f"/config/devices/entry[@name='localhost.localdomain']/network/virtual-router/entry[@name='default']/routing-table/ip/static-route"
+            static_routes_xpath = "/config/devices/entry[@name='localhost.localdomain']/network/virtual-router/entry[@name='default']/routing-table/ip/static-route"
             static_routes_params = {
                 'type': 'config',
                 'action': 'set',
@@ -256,14 +224,16 @@ class Step05_FirewallConfig:
                 'key': api_key
             }
 
-            response_routes = requests.get(config_url, params=static_routes_params, verify=False)
+            response_routes = requests.get(config_url, params=static_routes_params, verify=False, timeout=30)
             
             if response_routes.status_code == 200:
-                logger.info(f"Routing configured successfully")
+                logger.info("Static routes configured successfully")
+                logger.debug(f"Response: {response_routes.text}")
                 results['routing'] = 'success'
                 return True
             else:
                 logger.error(f"Failed to configure static routes: {response_routes.status_code}")
+                logger.error(f"Response: {response_routes.text}")
                 results['routing'] = 'failed'
                 return False
                 
@@ -272,23 +242,19 @@ class Step05_FirewallConfig:
             results['routing'] = 'error'
             return False
     
-    def _configure_security_policies(self, host, api_key, existing_policies, results):
-        """Configure security policies - with discovery-based checking"""
+    def _configure_security_policies(self, host, api_key, results):
+        """Configure security policies - fresh deployment, always apply"""
         try:
-            logger.info("Configuring security policies...")
-            
-            # Check if security policies are already configured
-            if existing_policies:
-                logger.info(f"Found {len(existing_policies)} existing security policies: {list(existing_policies.keys())} - skipping security policy configuration")
-                results['security_policies'] = 'skipped'
-                return True
+            logger.info("Configuring security policies (fresh deployment)...")
             
             # Load security policy template
             from utils_pa import PA_SECURITY_TEMPLATE
             with open(PA_SECURITY_TEMPLATE, 'r') as f:
                 pa_security_policy_tmp = f.read()
             
-            security_policy_xpath = f"/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/rulebase/security/rules"
+            logger.info(f"Loaded security template: {len(pa_security_policy_tmp)} characters")
+            
+            security_policy_xpath = "/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/rulebase/security/rules"
             config_url = f"https://{host}/api/"
             security_policy_params = {
                 'type': 'config',
@@ -298,14 +264,16 @@ class Step05_FirewallConfig:
                 'key': api_key
             }
 
-            response = requests.get(config_url, params=security_policy_params, verify=False)
+            response = requests.get(config_url, params=security_policy_params, verify=False, timeout=30)
             
             if response.status_code == 200:
-                logger.info(f"Security policies configured successfully")
+                logger.info("Security policies configured successfully")
+                logger.debug(f"Response: {response.text}")
                 results['security_policies'] = 'success'
                 return True
             else:
                 logger.error(f"Failed to configure security policies: {response.status_code}")
+                logger.error(f"Response: {response.text}")
                 results['security_policies'] = 'failed'
                 return False
                 
@@ -314,23 +282,19 @@ class Step05_FirewallConfig:
             results['security_policies'] = 'error'
             return False
     
-    def _configure_source_nat(self, host, api_key, existing_nat_rules, results):
-        """Configure source NAT - with discovery-based checking"""
+    def _configure_source_nat(self, host, api_key, results):
+        """Configure source NAT - fresh deployment, always apply"""
         try:
-            logger.info("Configuring source NAT...")
-            
-            # Check if NAT rules are already configured
-            if existing_nat_rules:
-                logger.info(f"Found {len(existing_nat_rules)} existing NAT rules: {list(existing_nat_rules.keys())} - skipping NAT configuration")
-                results['source_nat'] = 'skipped'
-                return True
+            logger.info("Configuring source NAT (fresh deployment)...")
             
             # Load source NAT template
             from utils_pa import PA_NAT_TEMPLATE
             with open(PA_NAT_TEMPLATE, 'r') as f:
                 pa_source_nat_tmp = f.read()
             
-            source_nat_xpath = f"/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/rulebase/nat/rules"
+            logger.info(f"Loaded NAT template: {len(pa_source_nat_tmp)} characters")
+            
+            source_nat_xpath = "/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/rulebase/nat/rules"
             config_url = f"https://{host}/api/"
             source_nat_params = {
                 'type': 'config',
@@ -340,14 +304,16 @@ class Step05_FirewallConfig:
                 'key': api_key
             }
 
-            response = requests.get(config_url, params=source_nat_params, verify=False)
+            response = requests.get(config_url, params=source_nat_params, verify=False, timeout=30)
             
             if response.status_code == 200:
-                logger.info(f"Source NAT configured successfully")
+                logger.info("Source NAT configured successfully")
+                logger.debug(f"Response: {response.text}")
                 results['source_nat'] = 'success'
                 return True
             else:
                 logger.error(f"Failed to configure source NAT: {response.status_code}")
+                logger.error(f"Response: {response.text}")
                 results['source_nat'] = 'failed'
                 return False
                 

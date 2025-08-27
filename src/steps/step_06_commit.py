@@ -1,14 +1,12 @@
 """
-Step 10: Commit and Sync Configuration
+Step 6: Commit and Sync Configuration
 
-Extracts commit_changes and force_sync_config logic from PaloAltoFirewall_config class
-and adapts it for Jenkins execution.
+For fresh deployments - always commits configuration and syncs to HA peer.
 """
 
 import requests
 import logging
 import pickle
-import json
 import xml.etree.ElementTree as ET
 import sys
 import os
@@ -24,73 +22,63 @@ logger = logging.getLogger()
 class Step06_CommitSync:
     """
     Commit configuration changes and force HA synchronization.
-    
-    Performs final deployment steps exactly like the original working class.
+    Fresh deployment - always commits and syncs.
     """
     
     def __init__(self):
-        """
-        Initialize commit and sync step.
-        """
         pass
     
     def execute(self):
         """
         Execute commit and sync operations.
+        Fresh deployment - always commits and syncs configuration.
         
         Returns:
             bool: True if successful, False otherwise
         """
         try:
             # Load firewall configuration data from previous step
-            try:
-                with open('firewall_config_data.pkl', 'rb') as f:
-                    config_data = pickle.load(f)
-                
-                active_fw_list = config_data['active_fw_list']
-                active_fw_headers = config_data['active_fw_headers']
-                config_results = config_data['config_results']
-                logger.info("Using firewall configuration data for commit and sync")
-                
-            except FileNotFoundError:
-                # Fallback to active firewall data if firewall config data not available
-                logger.warning("Firewall config data not found, using active firewall data")
-                with open('active_fw_data.pkl', 'rb') as f:
-                    active_fw_data = pickle.load(f)
-                
-                active_fw_list = active_fw_data['active_fw_list']
-                active_fw_headers = active_fw_data['active_fw_headers']
-                config_results = {}
+            with open('firewall_config_data.pkl', 'rb') as f:
+                config_data = pickle.load(f)
+            
+            active_fw_list = config_data['active_fw_list']
+            active_fw_headers = config_data['active_fw_headers']
+            config_results = config_data['config_results']
             
             active_host = active_fw_list[0]['host']
-            logger.info(f"Committing and syncing configuration on: {active_host}")
+            logger.info(f"Fresh deployment - committing and syncing configuration on: {active_host}")
+            logger.info(f"Configuration applied: {config_results}")
             
             commit_results = {}
             
-            # Step 10.1: Commit Configuration Changes - EXACT original logic
+            # Step 6.1: Commit Configuration Changes
+            logger.info("=== STEP 6.1: Committing Configuration ===")
             if not self._commit_changes(active_fw_list, active_fw_headers, commit_results):
                 return False
             
-            # Step 10.2: Force HA Configuration Sync - EXACT original logic (ALWAYS RUNS)
+            # Step 6.2: Force HA Configuration Sync
+            logger.info("=== STEP 6.2: Syncing to HA Peer ===")
             if not self._force_sync_config(active_fw_list, active_fw_headers, commit_results):
-                return False
+                logger.warning("HA sync failed, but configuration is committed")
+                # Don't fail the entire deployment if sync fails
             
-            # Save completion status for audit
+            # Save completion status
             step_data = {
                 'commit_completed': True,
-                'sync_completed': True,
-                'commit_skipped': False,
-                'sync_skipped': False,
+                'sync_completed': commit_results.get('ha_sync') == 'success',
                 'commit_results': commit_results,
                 'config_results': config_results,
-                'deployment_completed': True
+                'deployment_completed': True,
+                'configured_host': active_host
             }
             
             with open('commit_sync_data.pkl', 'wb') as f:
                 pickle.dump(step_data, f)
             
-            logger.info("Commit and sync configuration completed successfully")
-            logger.info(f"Final deployment summary: {commit_results}")
+            logger.info("=== DEPLOYMENT COMPLETED ===")
+            logger.info(f"Commit result: {commit_results.get('commit', 'unknown')}")
+            logger.info(f"Sync result: {commit_results.get('ha_sync', 'unknown')}")
+            logger.info(f"Configuration deployed to: {active_host}")
             return True
             
         except Exception as e:
@@ -98,181 +86,222 @@ class Step06_CommitSync:
             return False
         
     def _commit_changes(self, active_fw_list, active_fw_headers, results):
-        """Commit configuration changes - EXACT logic from original commit_changes()"""
-        # Step 1: Start commits and collect job IDs
+        """Commit configuration changes on active firewall"""
         try:
-            commit_url = f"https://{active_fw_list[0]['host']}/api/"
+            host = active_fw_list[0]['host']
+            api_key = active_fw_headers[0]['X-PAN-KEY']
+            
+            logger.info(f"Starting configuration commit on {host}")
+            
+            # Start commit
+            commit_url = f"https://{host}/api/"
             commit_params = {
                 'type': 'commit',
                 'cmd': '<commit></commit>',
-                'key': active_fw_headers[0]['X-PAN-KEY']  
+                'key': api_key
             }
             
             response_commit = requests.get(commit_url, params=commit_params, verify=False, timeout=60)
             
-            if response_commit.status_code == 200:
-                xml_response_commit = response_commit.text
-                root = ET.fromstring(xml_response_commit)
-                result = root.find(".//result")
-                if result is not None:
-                    jobid = result.findtext("job")
-                    if jobid:
-                        logger.info(f"Commit job ID for {active_fw_list[0]['host']}: {jobid}")
-                    else:
-                        logger.error(f"No job ID found in commit response for {active_fw_list[0]['host']}")
-                        results['commit'] = 'failed'
-                        return False
-                else:
-                    logger.error(f"Invalid commit response for {active_fw_list[0]['host']}: {xml_response_commit}")
-                    results['commit'] = 'failed'
-                    return False
-            else:
-                logger.error(f"Failed to start commit for {active_fw_list[0]['host']}: {response_commit.status_code}")
+            if response_commit.status_code != 200:
+                logger.error(f"Failed to start commit on {host}: {response_commit.status_code}")
+                logger.error(f"Response: {response_commit.text}")
                 results['commit'] = 'failed'
                 return False
-        except Exception as e:
-            logger.debug(f"Error committing changes for {active_fw_list[0]['host']}: {e}")
-            results['commit'] = 'error'
-            return False
-        
-        # Check if any jobs were started       
-        if not jobid:
-            logger.error("No commit jobs started")
-            results['commit'] = 'failed'
-            return False
             
-        # Step 2: Monitor jobs until all complete - EXACT original logic
-        try:
-            while jobid:
-                # Check job status for this specific device
-                job_url = f"https://{active_fw_list[0]['host']}/api/"
+            # Parse job ID
+            xml_response = response_commit.text
+            logger.debug(f"Commit response: {xml_response}")
+            root = ET.fromstring(xml_response)
+            result = root.find(".//result")
+            
+            if result is None:
+                logger.error(f"Invalid commit response from {host}: {xml_response}")
+                results['commit'] = 'failed'
+                return False
+            
+            jobid = result.findtext("job")
+            if not jobid:
+                logger.error(f"No job ID found in commit response from {host}")
+                results['commit'] = 'failed'
+                return False
+            
+            logger.info(f"Commit job started on {host}, job ID: {jobid}")
+            
+            # Monitor commit progress
+            max_wait_time = 300  # 5 minutes max
+            start_time = time.time()
+            
+            while time.time() - start_time < max_wait_time:
+                job_url = f"https://{host}/api/"
                 job_params = {
                     'type': 'op',
                     'cmd': f'<show><jobs><id>{jobid}</id></jobs></show>',
-                    'key': active_fw_headers[0]['X-PAN-KEY']
+                    'key': api_key
                 }
+                
                 job_response = requests.get(job_url, params=job_params, verify=False, timeout=30)
                 
-                if job_response.status_code == 200:
-                    job_xml_response = job_response.text
-                    root = ET.fromstring(job_xml_response)
-                    job = root.find(".//job")
-                    
-                    if job is not None:
-                        job_status = job.findtext("status")
-                        job_progress = job.findtext("progress", "0")
-                        job_result = job.findtext("result", "")
-                        
-                        if job_status == "ACT":
-                            logger.info(f"Commit running for {active_fw_list[0]['host']}, progress {job_progress}% - job ID: {jobid}")
-                            logger.info(f"logging job XML response for {active_fw_list[0]['host']}: {job_xml_response}")
-                            time.sleep(15)  # Wait before checking again
-                        elif job_status == "FIN":
-                            if job_result == "OK":
-                                logger.info(f"Commit completed successfully for {active_fw_list[0]['host']} - job ID: {jobid}")
-                                logger.info(f"logging job XML response for {active_fw_list[0]['host']}: {job_xml_response}")
-                                results['commit'] = 'success'
-                                return True
-                            else:
-                                logger.error(f"Job {jobid} failed on {active_fw_list[0]['host']}: {job_result}")
-                                logger.error(f"logging job XML response for {active_fw_list[0]['host']}: {job_xml_response}")
-                                results['commit'] = 'failed'
-                                return False
+                if job_response.status_code != 200:
+                    logger.warning(f"Failed to check job status: {job_response.status_code}")
+                    time.sleep(10)
+                    continue
+                
+                job_xml = job_response.text
+                logger.debug(f"Job status response: {job_xml}")
+                root = ET.fromstring(job_xml)
+                job = root.find(".//job")
+                
+                if job is None:
+                    logger.warning(f"No job info found in response")
+                    time.sleep(10)
+                    continue
+                
+                job_status = job.findtext("status")
+                job_progress = job.findtext("progress", "0")
+                job_result = job.findtext("result", "")
+                
+                if job_status == "ACT":
+                    logger.info(f"Commit in progress on {host}: {job_progress}%")
+                    time.sleep(15)
+                elif job_status == "FIN":
+                    if job_result == "OK":
+                        logger.info(f"Commit completed successfully on {host}")
+                        results['commit'] = 'success'
+                        return True
+                    else:
+                        logger.error(f"Commit failed on {host}: {job_result}")
+                        logger.error(f"Job details: {job_xml}")
+                        results['commit'] = 'failed'
+                        return False
+                else:
+                    logger.warning(f"Unknown job status: {job_status}")
+                    time.sleep(10)
+            
+            # Timeout
+            logger.error(f"Commit timeout on {host} after {max_wait_time} seconds")
+            results['commit'] = 'timeout'
+            return False
+            
         except Exception as e:
-            logger.error(f"Error committing changes for {active_fw_list[0]['host']}: {e}")
+            logger.error(f"Error committing changes on {host}: {e}")
             results['commit'] = 'error'
             return False
     
     def _force_sync_config(self, active_fw_list, active_fw_headers, results):
-        """Force HA configuration sync - EXACT logic from original force_sync_config()"""
+        """Force HA configuration sync to passive firewall"""
         try:
-            check_sync_url = f"https://{active_fw_list[0]['host']}/api/"
-            check_sync_params = {
+            host = active_fw_list[0]['host']
+            api_key = active_fw_headers[0]['X-PAN-KEY']
+            
+            logger.info(f"Checking HA sync status on {host}")
+            
+            sync_url = f"https://{host}/api/"
+            
+            # Check current sync status
+            check_params = {
                 'type': 'op',
                 'cmd': '<show><high-availability><state></state></high-availability></show>',
-                'key': active_fw_headers[0]['X-PAN-KEY']
+                'key': api_key
             }
-            response_sync = requests.get(check_sync_url, params=check_sync_params, verify=False, timeout=30)
-            logger.info(f"Response: {response_sync.status_code}")
-            if response_sync.status_code == 200:
-                xml_response_sync = response_sync.text
-                root = ET.fromstring(xml_response_sync)
-                config_state = root.findtext(".//group/running-sync")
-                if config_state == "synchronized":
-                    logger.info(f"Configuration is already synced on {active_fw_list[0]['host']}")
-                    results['ha_sync'] = 'success'
-                    return True
-                elif config_state == "synchronization in progress":
-                    if self._wait_for_sync_completion(active_fw_list, active_fw_headers):
-                        results['ha_sync'] = 'success'
-                        return True
-                    else:
-                        results['ha_sync'] = 'failed'
-                        return False
-                elif config_state == "not synchronized":
-                    sync_params = {
-                        'type': 'op',
-                        'cmd': '<request><high-availability><sync-to-remote><running-config></running-config></sync-to-remote></high-availability></request>',
-                        'key': active_fw_headers[0]['X-PAN-KEY']
-                    }
-                    response_sync = requests.get(check_sync_url, params=sync_params, verify=False, timeout=30)
-                    if response_sync.status_code == 200:
-                        logger.info(f"Configuration sync initiated on {active_fw_list[0]['host']}")
-                        logger.info(f"Response: {response_sync.text}")
-                        if self._wait_for_sync_completion(active_fw_list, active_fw_headers):
-                            results['ha_sync'] = 'success'
-                            return True
-                        else:
-                            results['ha_sync'] = 'failed'
-                            return False
-                    else:
-                        logger.error(f"Failed to initiate configuration sync on {active_fw_list[0]['host']}: {response_sync.status_code}")
-                        logger.error(f"Response: {response_sync.text}")
-                        results['ha_sync'] = 'failed'
-                        return False
-            else:
-                logger.error(f"Failed to sync configuration on {active_fw_list[0]['host']}: {response_sync.status_code}")
+            
+            response = requests.get(sync_url, params=check_params, verify=False, timeout=30)
+            
+            if response.status_code != 200:
+                logger.error(f"Failed to check HA sync status on {host}: {response.status_code}")
                 results['ha_sync'] = 'failed'
                 return False
+            
+            xml_response = response.text
+            logger.debug(f"HA state response: {xml_response}")
+            root = ET.fromstring(xml_response)
+            config_state = root.findtext(".//group/running-sync")
+            
+            logger.info(f"Current HA sync state: {config_state}")
+            
+            if config_state == "synchronized":
+                logger.info(f"Configuration already synchronized on {host}")
+                results['ha_sync'] = 'success'
+                return True
+            elif config_state == "synchronization in progress":
+                logger.info(f"Synchronization already in progress on {host}")
+                return self._wait_for_sync_completion(host, api_key, results)
+            elif config_state == "not synchronized":
+                logger.info(f"Initiating HA sync on {host}")
+                
+                # Start sync
+                sync_params = {
+                    'type': 'op',
+                    'cmd': '<request><high-availability><sync-to-remote><running-config></running-config></sync-to-remote></high-availability></request>',
+                    'key': api_key
+                }
+                
+                sync_response = requests.get(sync_url, params=sync_params, verify=False, timeout=30)
+                
+                if sync_response.status_code != 200:
+                    logger.error(f"Failed to initiate sync on {host}: {sync_response.status_code}")
+                    logger.error(f"Response: {sync_response.text}")
+                    results['ha_sync'] = 'failed'
+                    return False
+                
+                logger.info(f"HA sync initiated on {host}")
+                logger.debug(f"Sync response: {sync_response.text}")
+                
+                return self._wait_for_sync_completion(host, api_key, results)
+            else:
+                logger.warning(f"Unknown HA sync state: {config_state}")
+                results['ha_sync'] = 'unknown'
+                return False
+                
         except Exception as e:
-            logger.error(f"Error during configuration sync: {e}")
+            logger.error(f"Error during HA sync: {e}")
             results['ha_sync'] = 'error'
             return False
     
-    def _wait_for_sync_completion(self, active_fw_list, active_fw_headers):
-        """Monitor HA sync completion - EXACT logic from original wait_for_sync_completion()"""
+    def _wait_for_sync_completion(self, host, api_key, results):
+        """Wait for HA sync to complete"""
         try:
-            max_checks = 8  # Check each 15 seconds for a maximum of 2 minutes
-            check_sync_url = f"https://{active_fw_list[0]['host']}/api/"
-
+            logger.info(f"Waiting for HA sync completion on {host}")
+            
+            max_checks = 12  # 3 minutes max (12 * 15 seconds)
+            sync_url = f"https://{host}/api/"
+            
             for check in range(max_checks):
                 time.sleep(15)  # Wait between checks
                 
                 check_params = {
                     'type': 'op',
                     'cmd': '<show><high-availability><state></state></high-availability></show>',
-                    'key': active_fw_headers[0]['X-PAN-KEY']
+                    'key': api_key
                 }
                 
-                response = requests.get(check_sync_url, params=check_params, verify=False)
+                response = requests.get(sync_url, params=check_params, verify=False, timeout=30)
                 
-                if response.status_code == 200:
-                    root = ET.fromstring(response.text)
-                    current_state = root.findtext(".//group/running-sync")
-                    
-                    logger.info(f" Sync check {check + 1}/{max_checks}: Status = {current_state}")
-                    
-                    if current_state == "synchronized":
-                        logger.info(f"Running Config synchronization completed successfully!")
-                        return True
-                        
-                    elif current_state in ["synchronization in progress", "sync in progress", "syncing"]:
-                        continue
+                if response.status_code != 200:
+                    logger.warning(f"Failed to check sync status: {response.status_code}")
+                    continue
+                
+                root = ET.fromstring(response.text)
+                current_state = root.findtext(".//group/running-sync")
+                
+                logger.info(f"Sync check {check + 1}/{max_checks}: {current_state}")
+                
+                if current_state == "synchronized":
+                    logger.info(f"HA synchronization completed successfully on {host}")
+                    results['ha_sync'] = 'success'
+                    return True
+                elif current_state in ["synchronization in progress", "sync in progress", "syncing"]:
+                    continue
+                else:
+                    logger.warning(f"Unexpected sync state: {current_state}")
+                    continue
             
-            # If we get here, sync didn't complete in time
-            logger.warning("Sync monitoring timed out, but sync may still be in progress")
+            # Timeout
+            logger.warning(f"HA sync timeout on {host} - sync may still be in progress")
+            results['ha_sync'] = 'timeout'
             return False
             
         except Exception as e:
-            logger.error(f"Error monitoring sync completion: {e}")
+            logger.error(f"Error waiting for sync completion: {e}")
+            results['ha_sync'] = 'error'
             return False
