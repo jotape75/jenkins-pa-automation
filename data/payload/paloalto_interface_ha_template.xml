@@ -1,9 +1,9 @@
 <ha1>
-    <port>{HA1_INTERFACE}</port>
+    <port>{ha1_port}</port>
     <ip-address>{ha1_ip}</ip-address>
     <netmask>255.255.255.0</netmask>
 </ha1>
 <ha1-backup/>
 <ha2>
-    <port>{HA2_INTERFACE}</port>
+    <port>{ha2_port}</port>
 </ha2>

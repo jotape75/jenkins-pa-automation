@@ -62,14 +62,26 @@ class Step03_HAConfig:
             ha1_ip_1 = os.getenv('HA1_IP_1', '1.1.1.1')
             ha1_ip_2 = os.getenv('HA1_IP_2', '1.1.1.2')
             
+            # Get interface names from Jenkins parameters or defaults
+            ha1_interface = os.getenv('HA1_INTERFACE', 'ethernet1/4')
+            ha2_interface = os.getenv('HA2_INTERFACE', 'ethernet1/5')
+            
             ha_configs = [
                 {'device_priority': '100', 'preemptive': 'yes', 'peer_ip': peer_ip_1},
                 {'device_priority': '110', 'preemptive': 'no', 'peer_ip': peer_ip_2}
             ]
 
             interface_configs = [
-                {'ha1_ip': ha1_ip_1},
-                {'ha1_ip': ha1_ip_2}
+                {
+                    'ha1_ip': ha1_ip_1,
+                    'ha1_port': ha1_interface,
+                    'ha2_port': ha2_interface
+                },
+                {
+                    'ha1_ip': ha1_ip_2,
+                    'ha1_port': ha1_interface,
+                    'ha2_port': ha2_interface
+                }
             ]
             
             configured_devices = []
@@ -107,6 +119,7 @@ class Step03_HAConfig:
                         preemptive=ha_config['preemptive'],
                         peer_ip=ha_config['peer_ip']
                     )
+                    logger.debug(f"Group XML for {host}: {group_xml}")
                     group_params = {
                         'type': 'config',
                         'action': 'set',
@@ -126,7 +139,12 @@ class Step03_HAConfig:
                     # Step 3: Configure HA interfaces
                     logger.info(f"Configuring HA interfaces on {host}")
                     config = interface_configs[i]
-                    interface_xml = ha_int_template.format(ha1_ip=config['ha1_ip'])
+                    interface_xml = ha_int_template.format(
+                        ha1_ip=config['ha1_ip'],
+                        ha1_port=config['ha1_port'],
+                        ha2_port=config['ha2_port']
+                    )
+                    logger.debug(f"Interface XML for {host}: {interface_xml}")
                     interface_params = {
                         'type': 'config',
                         'action': 'set',
@@ -167,7 +185,9 @@ class Step03_HAConfig:
                 'ha_config_applied': True,
                 'configured_devices': configured_devices,
                 'pa_credentials': pa_credentials,
-                'api_keys_list': api_keys_list
+                'api_keys_list': api_keys_list,
+                'ha_interface_configs': interface_configs,
+                'ha_group_configs': ha_configs
             }
             
             with open('ha_config_data.pkl', 'wb') as f:

@@ -73,9 +73,9 @@ class TemplateUpdater:
             content = f.read()
         
         # Replace placeholders with Jenkins environment variables
-        content = content.replace('{HA1_INTERFACE}', os.getenv('HA1_INTERFACE', ''))
-        content = content.replace('{HA2_INTERFACE}', os.getenv('HA2_INTERFACE', ''))
-        content = content.replace('{ha1_ip}', os.getenv('HA1_IP', ''))  # If you add this parameter
+        content = content.replace('{ha1_port}', os.getenv('HA1_INTERFACE', 'ethernet1/4'))
+        content = content.replace('{ha2_port}', os.getenv('HA2_INTERFACE', 'ethernet1/5'))
+        content = content.replace('{ha1_ip}', os.getenv('HA1_IP_1', '1.1.1.1'))  # Fixed!
         
         with open(template_file, 'w') as f:
             f.write(content)
