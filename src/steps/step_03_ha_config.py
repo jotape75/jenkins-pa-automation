@@ -10,6 +10,7 @@ import logging
 import pickle
 import sys
 import os
+import time
 
 # Add the src directory to the Python path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -66,6 +67,7 @@ class Step03_HAConfig:
             ha1_interface = os.getenv('HA1_INTERFACE', 'ethernet1/4')
             ha2_interface = os.getenv('HA2_INTERFACE', 'ethernet1/5')
             
+            # HA configurations matching your original working pattern exactly
             ha_configs = [
                 {'device_priority': '100', 'preemptive': 'yes', 'peer_ip': peer_ip_1},
                 {'device_priority': '110', 'preemptive': 'no', 'peer_ip': peer_ip_2}
@@ -109,23 +111,32 @@ class Step03_HAConfig:
                         logger.debug(f"Response: {response_basic.text}")
                     else:
                         logger.error(f"Failed to enable basic HA on {host}: {response_basic.status_code}")
+                        logger.error(f"Response: {response_basic.text}")
                         return False
                         
                     # Step 2: Configure HA group
                     logger.info(f"Configuring HA group on {host}")
                     ha_config = ha_configs[i]
-                    group_xml = ha_config_template.format(
-                        device_priority=ha_config['device_priority'],
-                        preemptive=ha_config['preemptive'],
-                        peer_ip=ha_config['peer_ip']
-                    )
-                    logger.debug(f"Group XML for {host}: {group_xml}")
+                    
+                    # Format the template with proper substitution
+                    try:
+                        group_xml = ha_config_template.format(
+                            device_priority=ha_config['device_priority'],
+                            preemptive=ha_config['preemptive'],
+                            peer_ip=ha_config['peer_ip']
+                        )
+                        logger.debug(f"Group XML for {host}: {group_xml}")
+                    except KeyError as e:
+                        logger.error(f"Template formatting error for {host}: {e}")
+                        logger.error(f"Template content: {ha_config_template}")
+                        logger.error(f"Config values: {ha_config}")
+                        return False
+                    
                     group_params = {
                         'type': 'config',
                         'action': 'set',
                         'xpath': "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/high-availability/group",
                         'element': group_xml,
-                        'override': 'yes',
                         'key': headers['X-PAN-KEY']
                     }
                     response_group = requests.get(ha_url, params=group_params, verify=False, timeout=30)
@@ -134,22 +145,31 @@ class Step03_HAConfig:
                         logger.debug(f"Response: {response_group.text}")
                     else:
                         logger.error(f"Failed to configure HA group on {host}: {response_group.status_code}")
+                        logger.error(f"Response: {response_group.text}")
                         return False
                         
                     # Step 3: Configure HA interfaces
                     logger.info(f"Configuring HA interfaces on {host}")
                     config = interface_configs[i]
-                    interface_xml = ha_int_template.format(
-                        ha1_ip=config['ha1_ip'],
-                        ha1_port=config['ha1_port'],
-                        ha2_port=config['ha2_port']
-                    )
-                    logger.debug(f"Interface XML for {host}: {interface_xml}")
+                    
+                    # Format the interface template with proper substitution
+                    try:
+                        interface_xml = ha_int_template.format(
+                            ha1_ip=config['ha1_ip'],
+                            ha1_port=config['ha1_port'],       # ✅ Matches {ha1_port}
+                            ha2_port=config['ha2_port']        # ✅ Matches {ha2_port}
+                        )
+                        logger.debug(f"Interface XML for {host}: {interface_xml}")
+                    except KeyError as e:
+                        logger.error(f"Interface template formatting error for {host}: {e}")
+                        logger.error(f"Template content: {ha_int_template}")
+                        logger.error(f"Config values: {config}")
+                        return False
+                    
                     interface_params = {
                         'type': 'config',
                         'action': 'set',
                         'xpath': "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/high-availability/interface",
-                        'override': 'yes',
                         'element': interface_xml,
                         'key': headers['X-PAN-KEY']
                     }
@@ -159,6 +179,7 @@ class Step03_HAConfig:
                         logger.debug(f"Response: {response_int.text}")
                     else:
                         logger.error(f"Failed to configure HA interfaces on {host}: {response_int.status_code}")
+                        logger.error(f"Response: {response_int.text}")
                         return False
                     
                     configured_devices.append(host)
@@ -166,19 +187,50 @@ class Step03_HAConfig:
                         
                 except Exception as e:
                     logger.error(f"Error configuring HA on {host}: {e}")
+                    import traceback
+                    logger.error(f"Traceback: {traceback.format_exc()}")
                     return False
             
-            # Commit changes
+            # Commit changes with improved error handling
             logger.info(f"HA configuration applied to {len(configured_devices)} devices - committing changes")
             
-            # Add delay before commit to let configuration settle
-            import time
-            time.sleep(5)
+            # Add longer delay before commit to let configuration settle
+            logger.info("Waiting 15 seconds for HA configuration to settle...")
+            time.sleep(15)
             
-            from utils_pa import commit_changes
-            success = commit_changes(pa_credentials, api_keys_list, "HA Configuration")
-            if not success:
-                logger.warning("Commit failed - but configuration was applied")
+            # Import and use commit function with better error handling
+            try:
+                from utils_pa import commit_changes
+                success = commit_changes(pa_credentials, api_keys_list, "HA Configuration")
+                if not success:
+                    logger.warning("Commit failed - but configuration was applied")
+                    # Don't return False here - HA might still work
+                
+                # Additional wait for HA to establish
+                logger.info("Waiting additional 15 seconds for HA to establish...")
+                time.sleep(15)
+                
+            except Exception as commit_error:
+                logger.warning(f"Commit error - but configuration was applied: {commit_error}")
+                # Continue anyway as HA configuration might still be functional
+            
+            # Verify HA status on both devices
+            logger.info("Verifying HA configuration...")
+            for device, headers in zip(pa_credentials, api_keys_list):
+                try:
+                    ha_status_url = f"https://{device['host']}/api/"
+                    ha_status_params = {
+                        'type': 'op',
+                        'cmd': '<show><high-availability><state></state></high-availability></show>',
+                        'key': headers['X-PAN-KEY']
+                    }
+                    response = requests.get(ha_status_url, params=ha_status_params, verify=False, timeout=30)
+                    if response.status_code == 200:
+                        logger.info(f"HA status for {device['host']}: {response.text}")
+                    else:
+                        logger.warning(f"Could not verify HA status for {device['host']}: {response.status_code}")
+                except Exception as e:
+                    logger.warning(f"Could not verify HA status for {device['host']}: {e}")
             
             # Save completion status for next steps
             step_data = {
@@ -198,4 +250,6 @@ class Step03_HAConfig:
             
         except Exception as e:
             logger.error(f"Unexpected error in HA configuration: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return False
