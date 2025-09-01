@@ -11,6 +11,7 @@ import pickle
 import sys
 import os
 import time
+import xml.etree.ElementTree as ET
 
 # Add the src directory to the Python path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -23,6 +24,7 @@ class Step03_HAConfig:
     """
     Configure HA settings on all devices.
     Fresh deployment - always applies configuration.
+    Based on working pa_deployment_ha.py pattern.
     """
     
     def __init__(self):
@@ -45,23 +47,8 @@ class Step03_HAConfig:
             api_keys_list = step_data['api_keys_list']
             logger.info("Fresh deployment - applying HA configuration")
             
-            # Load HA configuration templates
-            try:
-                from utils_pa import PA_HA_CONFIG_TEMPLATE, PA_HA_INTERFACE_TEMPLATE
-                with open(PA_HA_CONFIG_TEMPLATE, 'r') as f:
-                    ha_config_template = f.read()
-                with open(PA_HA_INTERFACE_TEMPLATE, 'r') as f:
-                    ha_int_template = f.read()
-                
-                # Debug template loading
-                logger.info(f"HA Config Template Path: {PA_HA_CONFIG_TEMPLATE}")
-                logger.info(f"HA Interface Template Path: {PA_HA_INTERFACE_TEMPLATE}")
-                logger.debug(f"HA Config Template Content: {ha_config_template}")
-                logger.debug(f"HA Interface Template Content: {ha_int_template}")
-                logger.info("Loaded HA configuration templates")
-            except Exception as e:
-                logger.error(f"Failed to load HA config templates: {e}")
-                return False
+            # Load HA configuration templates using your existing constants
+            self.load_ha_templates()
             
             # HA configurations from Jenkins parameters or defaults
             peer_ip_1 = os.getenv('HA_PEER_IP_1', '1.1.1.2')
@@ -83,7 +70,7 @@ class Step03_HAConfig:
             
             configured_devices = []
             
-            # Configure HA on each device
+            # Configure HA on each device using working three-step pattern
             for i, (device, headers) in enumerate(zip(pa_credentials, api_keys_list)):
                 host = device['host']
                 logger.info(f"Configuring HA settings on {host} (fresh configuration)")
@@ -91,73 +78,54 @@ class Step03_HAConfig:
                 try:
                     ha_url = f"https://{host}/api/"
                     
-                    # Step 1: Enable basic HA
+                    # Step 1: Enable basic HA - EXACT COPY from working version
                     logger.info(f"Enabling basic HA on {host}")
                     basic_ha_params = {
                         'type': 'config',
                         'action': 'set',
                         'xpath': "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/high-availability",
                         'element': '<enabled>yes</enabled>',
-                        'override': 'yes',
                         'key': headers['X-PAN-KEY']
                     }
                     response_basic = requests.get(ha_url, params=basic_ha_params, verify=False, timeout=30)
                     if response_basic.status_code == 200:
                         logger.info(f"Basic HA enabled on {host}")
-                        logger.debug(f"Response: {response_basic.text}")
                     else:
                         logger.error(f"Failed to enable basic HA on {host}: {response_basic.status_code}")
-                        logger.error(f"Response: {response_basic.text}")
-                        return False
+                        continue  # Skip this device but continue with others
                         
-                    # Step 2: Configure HA group
+                    # Step 2: Configure HA group - EXACT COPY from working version
                     logger.info(f"Configuring HA group on {host}")
                     ha_config = ha_configs[i]
                     
                     # Format the template with proper substitution
-                    try:
-                        group_xml = ha_config_template.format(
-                            device_priority=ha_config['device_priority'],
-                            preemptive=ha_config['preemptive'],
-                            peer_ip=ha_config['peer_ip']
-                        )
-                        logger.debug(f"Group XML for {host}: {group_xml}")
-                    except KeyError as e:
-                        logger.error(f"Template formatting error for {host}: {e}")
-                        logger.error(f"Template content: {ha_config_template}")
-                        logger.error(f"Config values: {ha_config}")
-                        return False
+                    group_xml = self.pa_ha_config_tmp.format(
+                        device_priority=ha_config['device_priority'],
+                        preemptive=ha_config['preemptive'],
+                        peer_ip=ha_config['peer_ip']
+                    )
                     
                     group_params = {
                         'type': 'config',
                         'action': 'set',
                         'xpath': "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/high-availability/group",
-                        'override': 'yes',
                         'element': group_xml,
+                        'override': 'yes',
                         'key': headers['X-PAN-KEY']
                     }
                     response_group = requests.get(ha_url, params=group_params, verify=False, timeout=30)
                     if response_group.status_code == 200:
                         logger.info(f"HA group configured on {host}")
-                        logger.debug(f"Response: {response_group.text}")
                     else:
                         logger.error(f"Failed to configure HA group on {host}: {response_group.status_code}")
-                        logger.error(f"Response: {response_group.text}")
-                        return False
+                        continue  # Skip this device but continue with others
                         
-                    # Step 3: Configure HA interfaces
+                    # Step 3: Configure HA interfaces - EXACT COPY from working version
                     logger.info(f"Configuring HA interfaces on {host}")
                     config = interface_configs[i]
                     
-                    # Use ONLY ha1_ip like the original - no port parameters
-                    try:
-                        interface_xml = ha_int_template.format(ha1_ip=config['ha1_ip'])
-                        logger.debug(f"Interface XML for {host}: {interface_xml}")
-                    except KeyError as e:
-                        logger.error(f"Interface template formatting error for {host}: {e}")
-                        logger.error(f"Template content: {ha_int_template}")
-                        logger.error(f"Config values: {config}")
-                        return False
+                    # Use ONLY ha1_ip like the original
+                    interface_xml = self.pa_ha_int_tmp.format(ha1_ip=config['ha1_ip'])
                     
                     interface_params = {
                         'type': 'config',
@@ -170,93 +138,32 @@ class Step03_HAConfig:
                     response_int = requests.get(ha_url, params=interface_params, verify=False, timeout=30)
                     if response_int.status_code == 200:
                         logger.info(f"HA interfaces configured on {host}")
-                        logger.debug(f"Response: {response_int.text}")
+                        configured_devices.append(host)
+                        logger.info(f"HA configuration completed for {host}")
                     else:
                         logger.error(f"Failed to configure HA interfaces on {host}: {response_int.status_code}")
-                        logger.error(f"Response: {response_int.text}")
-                        return False
-                    
-                    configured_devices.append(host)
-                    logger.info(f"HA configuration completed for {host}")
+                        continue  # Skip this device but continue with others
                         
                 except Exception as e:
                     logger.error(f"Error configuring HA on {host}: {e}")
-                    import traceback
-                    logger.error(f"Traceback: {traceback.format_exc()}")
-                    return False
+                    continue  # Skip this device but continue with others
             
-            # Commit changes with improved error handling
+            # Commit changes using working pattern from original
             logger.info(f"HA configuration applied to {len(configured_devices)} devices - committing changes")
-            
-            # Add longer delay before commit to let configuration settle
             logger.info("Waiting 15 seconds for HA configuration to settle...")
             time.sleep(15)
             
-            # Import and use commit function with better error handling
-            try:
-                from utils_pa import commit_changes
-                success = commit_changes(pa_credentials, api_keys_list, "HA Configuration")
-                if not success:
-                    logger.warning("Commit failed - but configuration was applied")
-                    # Don't return False here - HA might still work
-                
-                # Additional wait for HA to establish
+            success = self.commit_changes(pa_credentials, api_keys_list)
+            if not success:
+                logger.warning("Commit failed - but configuration was applied")
+                # Additional HA enable step if needed
                 logger.info("Waiting additional 15 seconds for HA to establish...")
                 time.sleep(15)
-                
-            except Exception as commit_error:
-                logger.warning(f"Commit error - but configuration was applied: {commit_error}")
-                # Continue anyway as HA configuration might still be functional
+                self.force_enable_ha(pa_credentials, api_keys_list)
             
-            # Force enable HA on both devices after commit
-            logger.info("Force enabling HA on both devices...")
-            for device, headers in zip(pa_credentials, api_keys_list):
-                try:
-                    ha_url = f"https://{device['host']}/api/"
-                    
-                    # Force enable HA
-                    enable_ha_params = {
-                        'type': 'config',
-                        'action': 'set',
-                        'xpath': "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/high-availability/enabled",
-                        'element': 'yes',
-                        'override': 'yes',
-                        'key': headers['X-PAN-KEY']
-                    }
-                    response = requests.get(ha_url, params=enable_ha_params, verify=False, timeout=30)
-                    if response.status_code == 200:
-                        logger.info(f"HA force-enabled on {device['host']}")
-                    else:
-                        logger.warning(f"Could not force-enable HA on {device['host']}: {response.status_code}")
-                        
-                except Exception as e:
-                    logger.warning(f"Error force-enabling HA on {device['host']}: {e}")
-
-            # Commit the HA enable
-            logger.info("Committing HA enable...")
-            try:
-                from utils_pa import commit_changes
-                commit_changes(pa_credentials, api_keys_list, "HA Enable")
-            except Exception as e:
-                logger.warning(f"HA enable commit error: {e}")
-            
-            # Verify HA status on both devices
+            # Verify HA configuration
             logger.info("Verifying HA configuration...")
-            for device, headers in zip(pa_credentials, api_keys_list):
-                try:
-                    ha_status_url = f"https://{device['host']}/api/"
-                    ha_status_params = {
-                        'type': 'op',
-                        'cmd': '<show><high-availability><state></state></high-availability></show>',
-                        'key': headers['X-PAN-KEY']
-                    }
-                    response = requests.get(ha_status_url, params=ha_status_params, verify=False, timeout=30)
-                    if response.status_code == 200:
-                        logger.info(f"HA status for {device['host']}: {response.text}")
-                    else:
-                        logger.warning(f"Could not verify HA status for {device['host']}: {response.status_code}")
-                except Exception as e:
-                    logger.warning(f"Could not verify HA status for {device['host']}: {e}")
+            self.verify_ha_status(pa_credentials, api_keys_list)
             
             # Save completion status for next steps
             step_data = {
@@ -279,3 +186,171 @@ class Step03_HAConfig:
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
             return False
+    
+    def load_ha_templates(self):
+        """Load HA configuration templates using your existing constants"""
+        try:
+            from utils_pa import PA_HA_CONFIG_TEMPLATE, PA_HA_INTERFACE_TEMPLATE
+            
+            with open(PA_HA_CONFIG_TEMPLATE, 'r') as f:
+                self.pa_ha_config_tmp = f.read()
+            
+            with open(PA_HA_INTERFACE_TEMPLATE, 'r') as f:
+                self.pa_ha_int_tmp = f.read()
+                
+            logger.info("Loaded HA configuration templates")
+            
+        except Exception as e:
+            logger.error(f"Error loading HA templates: {e}")
+            raise
+    
+    def commit_changes(self, pa_credentials, api_keys_list):
+        """
+        Commit configuration changes using working pattern from original.
+        EXACT COPY of commit logic from pa_deployment_ha.py
+        """
+        jobid_dict = {}
+        ready_devices = {}
+
+        logger.info("Starting commit operations for HA Configuration...")
+        
+        # Step 1: Start commits and collect job IDs - EXACT COPY
+        for device, headers in zip(pa_credentials, api_keys_list):  
+            try:
+                commit_url = f"https://{device['host']}/api/"
+                commit_params = {
+                    'type': 'commit',
+                    'cmd': '<commit></commit>',
+                    'key': headers['X-PAN-KEY']  
+                }
+                
+                response = requests.get(commit_url, params=commit_params, verify=False, timeout=60)
+                
+                if response.status_code == 200:
+                    xml_response = response.text
+                    root = ET.fromstring(xml_response)
+                    result = root.find(".//result")
+                    if result is not None:
+                        jobid = result.findtext("job")
+                        if jobid:
+                            # Store device info with job ID - EXACT PATTERN
+                            unique_key = f"{device['host']}_{jobid}"
+                            jobid_dict[unique_key] = {
+                                'device': device,
+                                'headers': headers,
+                                'host': device['host'],
+                                'jobid': jobid
+                            }
+                            logger.info(f"Commit job ID for {device['host']}: {jobid}")
+            except Exception as e:
+                logger.error(f"Error committing changes for {device['host']}: {e}") 
+        
+        # Check if any jobs were started       
+        if not jobid_dict:
+            logger.error("No commit jobs started")
+            return False
+            
+        # Step 2: Monitor jobs until all complete - EXACT COPY
+        logger.info(f"Monitoring {len(jobid_dict)} commit jobs...")
+        max_wait_time = 300  # 5 minutes max wait
+        start_time = time.time()
+        
+        try:
+            while jobid_dict and (time.time() - start_time) < max_wait_time:
+                completed_jobs = []
+                for unique_key, job_info in jobid_dict.items():
+                    device = job_info['device']
+                    headers = job_info['headers']
+                    host = job_info['host']
+                    jobid = job_info['jobid']
+                    
+                    # Check job status for this specific device
+                    job_url = f"https://{host}/api/"
+                    job_params = {
+                        'type': 'op',
+                        'cmd': f'<show><jobs><id>{jobid}</id></jobs></show>',
+                        'key': headers['X-PAN-KEY']
+                    }
+                    job_response = requests.get(job_url, params=job_params, verify=False, timeout=30)
+                    
+                    if job_response.status_code == 200:
+                        job_xml_response = job_response.text
+                        root = ET.fromstring(job_xml_response)
+                        job = root.find(".//job")
+                        
+                        if job is not None:
+                            job_status = job.findtext("status")
+                            job_progress = job.findtext("progress", "0")
+                            job_result = job.findtext("result", "")
+                            
+                            if job_status == "ACT":
+                                logger.info(f"Commit running for {host}, progress {job_progress}%")
+                            elif job_status == "FIN":
+                                if job_result == "OK":
+                                    logger.info(f"Commit completed successfully for {host}")
+                                    ready_devices[host] = [host]
+                                else:
+                                    logger.error(f"Commit failed on {host}: {job_result}")
+                                completed_jobs.append(unique_key) # Mark job as completed
+                                
+                # Remove completed jobs from the dictionary
+                for unique_key in completed_jobs:
+                    if unique_key in jobid_dict:
+                        del jobid_dict[unique_key]
+                                        
+                if len(ready_devices) == len(pa_credentials):
+                    logger.info("All commits completed successfully for HA Configuration!")
+                    return True
+                
+                # Wait before checking again
+                if jobid_dict:  # Only sleep if there are still jobs to monitor
+                    time.sleep(15)
+                    
+        except Exception as e:
+            logger.error(f"Error monitoring commits: {e}")
+            return False
+            
+        return len(ready_devices) == len(pa_credentials)
+    
+    def force_enable_ha(self, pa_credentials, api_keys_list):
+        """Force enable HA on both devices if needed"""
+        logger.info("Force enabling HA on both devices...")
+        for device, headers in zip(pa_credentials, api_keys_list):
+            try:
+                ha_url = f"https://{device['host']}/api/"
+                force_enable_params = {
+                    'type': 'config',
+                    'action': 'set',
+                    'xpath': "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/high-availability",
+                    'element': '<enabled>yes</enabled>',
+                    'key': headers['X-PAN-KEY']
+                }
+                response = requests.get(ha_url, params=force_enable_params, verify=False, timeout=30)
+                if response.status_code == 200:
+                    logger.info(f"HA force-enabled on {device['host']}")
+                else:
+                    logger.error(f"Failed to force-enable HA on {device['host']}")
+            except Exception as e:
+                logger.error(f"Error force-enabling HA on {device['host']}: {e}")
+        
+        # Commit the force enable
+        logger.info("Committing HA enable...")
+        self.commit_changes(pa_credentials, api_keys_list)
+    
+    def verify_ha_status(self, pa_credentials, api_keys_list):
+        """Verify HA status on both devices"""
+        for device, headers in zip(pa_credentials, api_keys_list):
+            try:
+                ha_status_url = f"https://{device['host']}/api/"
+                ha_status_params = {
+                    'type': 'op',
+                    'cmd': '<show><high-availability><state></state></high-availability></show>',
+                    'key': headers['X-PAN-KEY']
+                }
+                response = requests.get(ha_status_url, params=ha_status_params, verify=False, timeout=30)
+                if response.status_code == 200:
+                    logger.info(f"HA status for {device['host']}: {response.text}")
+                else:
+                    logger.error(f"Failed to get HA status for {device['host']}")
+            except Exception as e:
+                logger.error(f"Error getting HA status for {device['host']}: {e}")

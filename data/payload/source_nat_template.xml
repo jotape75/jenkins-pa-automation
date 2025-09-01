@@ -8,10 +8,10 @@
         </dynamic-ip-and-port>
     </source-translation>
     <to>
-        <member>{untrust}</member>
+        <member>Untrust</member>
     </to>
     <from>
-        <member>{trust}</member>
+        <member>Trust</member>
     </from>
     <source>
         <member>any</member>
@@ -32,10 +32,10 @@
         </dynamic-ip-and-port>
     </source-translation>
     <to>
-        <member>{untrust}</member>
+        <member>Untrust</member>
     </to>
     <from>
-        <member>{dmz}</member>
+        <member>DMZ</member>
     </from>
     <source>
         <member>any</member>

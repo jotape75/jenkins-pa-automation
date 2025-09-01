@@ -297,21 +297,18 @@ class Step05_FirewallConfig:
             # Remove the /24 subnet mask for NAT IP
             ethernet1_2_ip_clean = ethernet1_2_ip_untrust.split('/')[0]
             
-            untrust_zone = os.getenv('UNTRUST', 'ethernet1/2') 
-            trust_zone = os.getenv('TRUST', 'ethernet1/1')
-            dmz_zone = os.getenv('DMZ', 'ethernet1/3')
+            # Get interface name for untrust (template expects interface name)
+            untrust_interface = os.getenv('UNTRUST', 'ethernet1/2')
             
-            # Format NAT template with correct variables to match your working template
+            # Format NAT template with correct variables
             formatted_nat_xml = self.pa_source_nat_tmp.format(
                 ETHERNET1_2_IP_untrust=ethernet1_2_ip_clean,  # Clean IP without subnet
-                untrust=untrust_zone,
-                trust=trust_zone, 
-                dmz=dmz_zone
+                untrust=untrust_interface  # Interface name (e.g., "ethernet1/2")
             )
             
             logger.debug(f"Formatted NAT XML: {formatted_nat_xml}")
             
-            # Use original xpath - configure NAT rules collection, not individual rule
+            # Use original xpath - configure NAT rules collection
             source_nat_xpath = "/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/rulebase/nat/rules"
             source_nat_config_url = f"https://{self.active_fw_list[0]['host']}/api/"
             source_nat_params = {

@@ -42,7 +42,7 @@ class Step06_CommitSync:
                     config_data = pickle.load(f)
                 active_fw_list = config_data['active_fw_list']
                 active_fw_headers = config_data['active_fw_headers']
-                config_results = config_data['config_results']
+                config_results = config_data.get('config_summary', {})
                 logger.info("Using firewall configuration data for commit and sync")
             except FileNotFoundError:
                 # Fallback to active firewall data if firewall config data not available
