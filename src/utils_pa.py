@@ -27,6 +27,7 @@ PA_ROUTER_TEMPLATE = f"{get_project_root()}/data/payload/virtual_router_template
 PA_ROUTES_TEMPLATE = f"{get_project_root()}/data/payload/static_route_template.xml"
 PA_SECURITY_TEMPLATE = f"{get_project_root()}/data/payload/security_policy_template.xml"
 PA_NAT_TEMPLATE = f"{get_project_root()}/data/payload/source_nat_template.xml"
+PA_VIRTUAL_ROUTER_TEMPLATE = f"{get_project_root()}/data/payload/virtual_router_template.xml"
 
 def file_path():
     """
@@ -42,7 +43,8 @@ def file_path():
         str(PA_ROUTER_TEMPLATE),
         str(PA_ROUTES_TEMPLATE),
         str(PA_SECURITY_TEMPLATE),
-        str(PA_NAT_TEMPLATE)
+        str(PA_NAT_TEMPLATE),
+        str(PA_VIRTUAL_ROUTER_TEMPLATE)
     )
 def commit_changes(pa_credentials, api_keys_list, step_name=""):
     """

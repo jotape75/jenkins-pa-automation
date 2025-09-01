@@ -182,19 +182,23 @@ class Step05_FirewallConfig:
         try:
             logger.info("Configuring routing (fresh deployment)...")
             
-            # Load routing templates
-            from utils_pa import PA_ROUTER_TEMPLATE, PA_ROUTES_TEMPLATE
+            # Load routing templates - following your existing pattern
+            from utils_pa import PA_ROUTER_TEMPLATE, PA_ROUTES_TEMPLATE, PA_VIRTUAL_ROUTER_TEMPLATE
+            
             with open(PA_ROUTER_TEMPLATE, 'r') as f:
                 pa_route_settings_tmp = f.read()
             with open(PA_ROUTES_TEMPLATE, 'r') as f:
                 pa_static_routes_tmp = f.read()
+            with open(PA_VIRTUAL_ROUTER_TEMPLATE, 'r') as f:
+                pa_virtual_router_tmp = f.read()
             
             logger.info(f"Loaded router template: {len(pa_route_settings_tmp)} characters")
             logger.info(f"Loaded routes template: {len(pa_static_routes_tmp)} characters")
+            logger.info(f"Loaded virtual router template: {len(pa_virtual_router_tmp)} characters")
             
             config_url = f"https://{host}/api/"
             
-            # Configure route settings
+            # Step 5.3.1: Configure virtual router settings (existing)
             route_settings_xpath = "/config/devices/entry[@name='localhost.localdomain']/network/virtual-router"
             route_settings_params = {
                 'type': 'config',
@@ -214,7 +218,27 @@ class Step05_FirewallConfig:
             
             logger.info("Virtual router configured successfully")
             
-            # Configure static routes
+            # Step 5.3.2: Configure virtual router interface assignments - THIS IS NEW!
+            virtual_router_xpath = "/config/devices/entry[@name='localhost.localdomain']/network/virtual-router/entry[@name='default']"
+            virtual_router_params = {
+                'type': 'config',
+                'action': 'set',
+                'xpath': virtual_router_xpath,
+                'element': pa_virtual_router_tmp,
+                'key': api_key
+            }
+
+            response_virtual_router = requests.get(config_url, params=virtual_router_params, verify=False, timeout=30)
+            
+            if response_virtual_router.status_code != 200:
+                logger.error(f"Failed to configure virtual router interfaces: {response_virtual_router.status_code}")
+                logger.error(f"Response: {response_virtual_router.text}")
+                results['routing'] = 'failed'
+                return False
+            
+            logger.info("Virtual router interface assignments configured successfully")
+            
+            # Step 5.3.3: Configure static routes (existing)
             static_routes_xpath = "/config/devices/entry[@name='localhost.localdomain']/network/virtual-router/entry[@name='default']/routing-table/ip/static-route"
             static_routes_params = {
                 'type': 'config',
