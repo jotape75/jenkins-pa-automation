@@ -19,6 +19,8 @@ PAYLOAD_DIR = DATA_DIR / "payload" # navigate to payload directory
 
 # File paths CONSTANTS
 
+# File paths CONSTANTS
+
 PA_INTERFACE_TEMPLATE = f"{get_project_root()}/data/payload/data_interface.xml"
 PA_HA_INTERFACE_TEMPLATE = f"{get_project_root()}/data/payload/paloalto_interface_ha_template.xml"
 PA_HA_CONFIG_TEMPLATE = f"{get_project_root()}/data/payload/paloalto_ha_template_config.xml"
@@ -27,7 +29,7 @@ PA_ROUTER_TEMPLATE = f"{get_project_root()}/data/payload/virtual_router_template
 PA_ROUTES_TEMPLATE = f"{get_project_root()}/data/payload/static_route_template.xml"
 PA_SECURITY_TEMPLATE = f"{get_project_root()}/data/payload/security_policy_template.xml"
 PA_NAT_TEMPLATE = f"{get_project_root()}/data/payload/source_nat_template.xml"
-PA_VIRTUAL_ROUTER_TEMPLATE = f"{get_project_root()}/data/payload/virtual_router_template.xml"
+# Remove PA_VIRTUAL_ROUTER_TEMPLATE (duplicate of PA_ROUTER_TEMPLATE)
 
 def file_path():
     """
@@ -43,8 +45,7 @@ def file_path():
         str(PA_ROUTER_TEMPLATE),
         str(PA_ROUTES_TEMPLATE),
         str(PA_SECURITY_TEMPLATE),
-        str(PA_NAT_TEMPLATE),
-        str(PA_VIRTUAL_ROUTER_TEMPLATE)
+        str(PA_NAT_TEMPLATE)
     )
 def commit_changes(pa_credentials, api_keys_list, step_name=""):
     """

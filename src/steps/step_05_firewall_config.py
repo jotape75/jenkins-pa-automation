@@ -1,7 +1,8 @@
 """
-Step 5: Complete Firewall Configuration on Active Device
+Step 5: Complete Firewall Configuration
 
-For fresh deployments - always applies all configuration without checking existing status.
+Configure interfaces, zones, routing, security policies, and NAT
+on the active firewall only.
 """
 
 import requests
@@ -13,14 +14,17 @@ import os
 # Add the src directory to the Python path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from utils_pa import (PA_INTERFACE_TEMPLATE, PA_ZONES_TEMPLATE, PA_ROUTER_TEMPLATE, 
+                     PA_ROUTES_TEMPLATE, PA_SECURITY_TEMPLATE, PA_NAT_TEMPLATE)
+
 # Disable SSL warnings
 requests.packages.urllib3.disable_warnings()
 logger = logging.getLogger()
 
 class Step05_FirewallConfig:
     """
-    Complete firewall configuration on active device.
-    Fresh deployment - always applies all configuration.
+    Complete firewall configuration on active device only.
+    Fresh deployment - always applies configuration.
     """
     
     def __init__(self):
@@ -28,320 +32,304 @@ class Step05_FirewallConfig:
     
     def execute(self):
         """
-        Execute complete firewall configuration.
-        Fresh start - no status checks, always apply all configuration.
+        Apply complete firewall configuration to active device.
+        Fresh deployment - no status checks, always apply configuration.
         
         Returns:
             bool: True if successful, False otherwise
         """
         try:
-            # Load active firewall data from previous step
+            # Load data from previous step
             with open('active_fw_data.pkl', 'rb') as f:
-                active_fw_data = pickle.load(f)
+                step_data = pickle.load(f)
             
-            active_fw_list = active_fw_data['active_fw_list']
-            active_fw_headers = active_fw_data['active_fw_headers']
+            self.active_fw_list = step_data['active_fw_list']
+            self.active_fw_headers = step_data['active_fw_headers']
+            
+            # Load templates like the original
+            self.load_templates()
+            
             logger.info("Fresh deployment - applying complete firewall configuration")
+            logger.info(f"Configuring firewall: {self.active_fw_list[0]['host']} (fresh configuration)")
             
-            active_host = active_fw_list[0]['host']
-            active_key = active_fw_headers[0]['X-PAN-KEY']
-            logger.info(f"Configuring firewall: {active_host} (fresh configuration)")
-            
-            # Execute all configuration steps in sequence
-            config_results = {}
-            
-            # Step 5.1: Interface Configuration
+            # Execute configuration steps in original order
             logger.info("=== STEP 5.1: Interface Configuration ===")
-            if not self._configure_interfaces(active_host, active_key, config_results):
-                return False
-                
-            # Step 5.2: Zone Configuration
-            logger.info("=== STEP 5.2: Zone Configuration ===")
-            if not self._configure_zones(active_host, active_key, config_results):
-                return False
-                
-            # Step 5.3: Routing Configuration
-            logger.info("=== STEP 5.3: Routing Configuration ===")
-            if not self._configure_routing(active_host, active_key, config_results):
-                return False
-                
-            # Step 5.4: Security Policy Configuration
-            logger.info("=== STEP 5.4: Security Policy Configuration ===")
-            if not self._configure_security_policies(active_host, active_key, config_results):
-                return False
-                
-            # Step 5.5: Source NAT Configuration
-            logger.info("=== STEP 5.5: Source NAT Configuration ===")
-            if not self._configure_source_nat(active_host, active_key, config_results):
-                return False
+            self.act_fw_int_config()
             
-            # Save completion status for next steps
+            logger.info("=== STEP 5.2: Zone Configuration ===")
+            self.act_fw_zone_config()
+            
+            logger.info("=== STEP 5.3: Routing Configuration ===")
+            self.act_fw_route_config()
+            
+            logger.info("=== STEP 5.4: Security Policy Configuration ===")
+            self.act_fw_security_policy_config()
+            
+            logger.info("=== STEP 5.5: Source NAT Configuration ===")
+            self.act_fw_source_nat_config()
+            
+            # Save data for next step (commit)
             step_data = {
-                'firewall_configured': True,
-                'config_results': config_results,
-                'active_fw_list': active_fw_list,
-                'active_fw_headers': active_fw_headers,
-                'firewall_configuration_completed': True,
-                'configured_host': active_host
+                'firewall_config_applied': True,
+                'active_fw_list': self.active_fw_list,
+                'active_fw_headers': self.active_fw_headers,
+                'config_summary': {
+                    'interfaces': 'success',
+                    'zones': 'success', 
+                    'routing': 'success',
+                    'security_policies': 'success',
+                    'source_nat': 'success'
+                }
             }
             
             with open('firewall_config_data.pkl', 'wb') as f:
                 pickle.dump(step_data, f)
             
             logger.info("=== FIREWALL CONFIGURATION COMPLETED ===")
-            logger.info(f"Configuration summary: {config_results}")
-            logger.info(f"Configured firewall: {active_host}")
+            logger.info(f"Configured firewall: {self.active_fw_list[0]['host']}")
             return True
             
         except Exception as e:
             logger.error(f"Unexpected error in firewall configuration: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return False
     
-    def _configure_interfaces(self, host, api_key, results):
-        """Configure interfaces - fresh deployment, always apply"""
+    def load_templates(self):
+        """Load all configuration templates with environment variables"""
         try:
-            logger.info("Configuring interfaces (fresh deployment)...")
-            
-            # Load interface template
-            from utils_pa import PA_INTERFACE_TEMPLATE
+            # Load interface template and format it
             with open(PA_INTERFACE_TEMPLATE, 'r') as f:
-                pa_interface_tmp = f.read()
+                interface_tmp = f.read()
             
-            logger.info(f"Loaded interface template: {len(pa_interface_tmp)} characters")
+            # Format interface template with environment variables
+            ethernet1_1_ip = os.getenv('ETHERNET1_1_IP_TRUST', '10.10.10.5/24')
+            ethernet1_2_ip = os.getenv('ETHERNET1_2_IP_UNTRUST', '200.200.200.2/24')
+            ethernet1_3_ip = os.getenv('ETHERNET1_3_IP_DMZ', '10.30.30.5/24')
             
+            self.pa_interface_tmp = interface_tmp.format(
+                ethernet1_1_ip=ethernet1_1_ip,
+                ethernet1_2_ip=ethernet1_2_ip,
+                ethernet1_3_ip=ethernet1_3_ip
+            )
+            
+            # Load zones template and format it
+            with open(PA_ZONES_TEMPLATE, 'r') as f:
+                zones_tmp = f.read()
+                
+            trust_interface = os.getenv('TRUST', 'ethernet1/1')
+            untrust_interface = os.getenv('UNTRUST', 'ethernet1/2')
+            dmz_interface = os.getenv('DMZ', 'ethernet1/3')
+            
+            self.pa_zones_tmp = zones_tmp.format(
+                trust_interface=trust_interface,
+                untrust_interface=untrust_interface,
+                dmz_interface=dmz_interface
+            )
+            
+            # Load router settings template and format it
+            with open(PA_ROUTER_TEMPLATE, 'r') as f:
+                router_tmp = f.read()
+                
+            self.pa_route_settings_tmp = router_tmp.format(
+                trust_interface=trust_interface,
+                untrust_interface=untrust_interface,
+                dmz_interface=dmz_interface
+            )
+            
+            # Load static routes template and format it
+            with open(PA_ROUTES_TEMPLATE, 'r') as f:
+                routes_tmp = f.read()
+                
+            default_gateway = os.getenv('DEFAULT_GATEWAY', '200.200.200.1')
+            static_route_network = os.getenv('STATIC_ROUTE_NETWORK', '10.0.0.0/8')
+            static_route_nexthop = os.getenv('STATIC_ROUTE_NEXTHOP', '10.10.10.1')
+            
+            self.pa_static_routes_tmp = routes_tmp.format(
+                STATIC_ROUTE_NETWORK=static_route_network,
+                STATIC_ROUTE_NEXTHOP=static_route_nexthop,
+                untrust=untrust_interface
+            )
+            
+            # Load security template (no formatting needed)
+            with open(PA_SECURITY_TEMPLATE, 'r') as f:
+                self.pa_security_policy_tmp = f.read()
+            
+            # Load NAT template (will be formatted in the method)
+            with open(PA_NAT_TEMPLATE, 'r') as f:
+                self.pa_source_nat_tmp = f.read()
+                
+            logger.info("All configuration templates loaded successfully")
+            
+        except Exception as e:
+            logger.error(f"Error loading templates: {e}")
+            raise
+    
+    def act_fw_int_config(self):
+        """Configure physical interfaces on active firewall - matching original"""
+        try:
             interface_xpath = "/config/devices/entry[@name='localhost.localdomain']/network/interface/ethernet"
-            config_url = f"https://{host}/api/"
+            
+            # Apply configuration to active firewall
+            config_url = f"https://{self.active_fw_list[0]['host']}/api/"
             interface_params = {
                 'type': 'config',
                 'action': 'set',
                 'xpath': interface_xpath,
-                'element': pa_interface_tmp,
-                'key': api_key
+                'element': self.pa_interface_tmp,
+                'key': self.active_fw_headers[0]['X-PAN-KEY']
             }
 
-            response = requests.get(config_url, params=interface_params, verify=False, timeout=30)
+            response_interface = requests.get(config_url, params=interface_params, verify=False, timeout=30)
             
-            if response.status_code == 200:
-                logger.info("Interfaces configured successfully")
-                logger.debug(f"Response: {response.text}")
-                results['interfaces'] = 'success'
-                return True
+            if response_interface.status_code == 200:
+                logger.info(f"Interfaces configured successfully on {self.active_fw_list[0]['host']}")
+                logger.info(f"Response: {response_interface.text}")
             else:
-                logger.error(f"Failed to configure interfaces: {response.status_code}")
-                logger.error(f"Response: {response.text}")
-                results['interfaces'] = 'failed'
-                return False
-                
+                logger.error(f"Failed to configure interfaces on {self.active_fw_list[0]['host']}: {response_interface.status_code}")
+                logger.error(f"Response: {response_interface.text}")
+                raise Exception("Interface configuration failed")
+
         except Exception as e:
-            logger.error(f"Error configuring interfaces: {e}")
-            results['interfaces'] = 'error'
-            return False
-    
-    def _configure_zones(self, host, api_key, results):
-        """Configure zones - fresh deployment, always apply"""
+            logger.error(f"Error in interface configuration process: {e}")
+            raise
+
+    def act_fw_zone_config(self):
+        """Configure security zones on active firewall - matching original"""
         try:
-            logger.info("Configuring zones (fresh deployment)...")
-            
-            # Load zones template
-            from utils_pa import PA_ZONES_TEMPLATE
-            with open(PA_ZONES_TEMPLATE, 'r') as f:
-                pa_zones_tmp = f.read()
-            
-            logger.info(f"Loaded zones template: {len(pa_zones_tmp)} characters")
-            
-            zones_xpath = "/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/zone"
-            config_url = f"https://{host}/api/"
-            zones_params = {
+            zone_xpath = "/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/zone"
+            zone_config_url = f"https://{self.active_fw_list[0]['host']}/api/"
+            zone_params = {
                 'type': 'config',
                 'action': 'set',
-                'xpath': zones_xpath,
-                'element': pa_zones_tmp,
-                'key': api_key
+                'xpath': zone_xpath,
+                'element': self.pa_zones_tmp,
+                'key': self.active_fw_headers[0]['X-PAN-KEY']
             }
-
-            response = requests.get(config_url, params=zones_params, verify=False, timeout=30)
-            
-            if response.status_code == 200:
-                logger.info("Zones configured successfully")
-                logger.debug(f"Response: {response.text}")
-                results['zones'] = 'success'
-                return True
+            response_zone = requests.get(zone_config_url, params=zone_params, verify=False, timeout=30)
+            if response_zone.status_code == 200:
+                logger.info(f"Zones configured successfully on {self.active_fw_list[0]['host']}")
+                logger.info(f"Response: {response_zone.text}")
             else:
-                logger.error(f"Failed to configure zones: {response.status_code}")
-                logger.error(f"Response: {response.text}")
-                results['zones'] = 'failed'
-                return False
-                
+                logger.error(f"Failed to configure zones on {self.active_fw_list[0]['host']}: {response_zone.status_code}")
+                logger.error(f"Response: {response_zone.text}")
+                raise Exception("Zone configuration failed")
+            
         except Exception as e:
             logger.error(f"Error configuring zones: {e}")
-            results['zones'] = 'error'
-            return False
-    
-    def _configure_routing(self, host, api_key, results):
-        """Configure routing - fresh deployment, always apply"""
+            raise
+            
+    def act_fw_route_config(self):
+        """Configure virtual router and static routes - EXACT COPY of original"""
         try:
-            logger.info("Configuring routing (fresh deployment)...")
-            
-            # Load routing templates - following your existing pattern
-            from utils_pa import PA_ROUTER_TEMPLATE, PA_ROUTES_TEMPLATE, PA_VIRTUAL_ROUTER_TEMPLATE
-            
-            with open(PA_ROUTER_TEMPLATE, 'r') as f:
-                pa_route_settings_tmp = f.read()
-            with open(PA_ROUTES_TEMPLATE, 'r') as f:
-                pa_static_routes_tmp = f.read()
-            with open(PA_VIRTUAL_ROUTER_TEMPLATE, 'r') as f:
-                pa_virtual_router_tmp = f.read()
-            
-            logger.info(f"Loaded router template: {len(pa_route_settings_tmp)} characters")
-            logger.info(f"Loaded routes template: {len(pa_static_routes_tmp)} characters")
-            logger.info(f"Loaded virtual router template: {len(pa_virtual_router_tmp)} characters")
-            
-            config_url = f"https://{host}/api/"
-            
-            # Step 5.3.1: Configure virtual router settings (existing)
-            route_settings_xpath = "/config/devices/entry[@name='localhost.localdomain']/network/virtual-router"
-            route_settings_params = {
+            # Step 1: Configure virtual router settings (original line ~200)
+            route_xpath = "/config/devices/entry[@name='localhost.localdomain']/network/virtual-router/entry[@name='default']"
+            route_config_url = f"https://{self.active_fw_list[0]['host']}/api/"
+            route_params = {
                 'type': 'config',
                 'action': 'set',
-                'xpath': route_settings_xpath,
-                'element': pa_route_settings_tmp,
-                'key': api_key
+                'xpath': route_xpath,
+                'element': self.pa_route_settings_tmp,
+                'key': self.active_fw_headers[0]['X-PAN-KEY']
             }
-
-            response_settings = requests.get(config_url, params=route_settings_params, verify=False, timeout=30)
-            
-            if response_settings.status_code != 200:
-                logger.error(f"Failed to configure route settings: {response_settings.status_code}")
-                logger.error(f"Response: {response_settings.text}")
-                results['routing'] = 'failed'
-                return False
-            
-            logger.info("Virtual router configured successfully")
-            
-            # Step 5.3.2: Configure virtual router interface assignments - THIS IS NEW!
-            virtual_router_xpath = "/config/devices/entry[@name='localhost.localdomain']/network/virtual-router/entry[@name='default']"
-            virtual_router_params = {
-                'type': 'config',
-                'action': 'set',
-                'xpath': virtual_router_xpath,
-                'element': pa_virtual_router_tmp,
-                'key': api_key
-            }
-
-            response_virtual_router = requests.get(config_url, params=virtual_router_params, verify=False, timeout=30)
-            
-            if response_virtual_router.status_code != 200:
-                logger.error(f"Failed to configure virtual router interfaces: {response_virtual_router.status_code}")
-                logger.error(f"Response: {response_virtual_router.text}")
-                results['routing'] = 'failed'
-                return False
-            
-            logger.info("Virtual router interface assignments configured successfully")
-            
-            # Step 5.3.3: Configure static routes (existing)
-            static_routes_xpath = "/config/devices/entry[@name='localhost.localdomain']/network/virtual-router/entry[@name='default']/routing-table/ip/static-route"
-            static_routes_params = {
-                'type': 'config',
-                'action': 'set',
-                'xpath': static_routes_xpath,
-                'element': pa_static_routes_tmp,
-                'key': api_key
-            }
-
-            response_routes = requests.get(config_url, params=static_routes_params, verify=False, timeout=30)
-            
-            if response_routes.status_code == 200:
-                logger.info("Static routes configured successfully")
-                logger.debug(f"Response: {response_routes.text}")
-                results['routing'] = 'success'
-                return True
+            response_route = requests.get(route_config_url, params=route_params, verify=False, timeout=30)
+            if response_route.status_code == 200:
+                logger.info(f"Route settings configured successfully on {self.active_fw_list[0]['host']}")
+                logger.info(f"Response: {response_route.text}")
             else:
-                logger.error(f"Failed to configure static routes: {response_routes.status_code}")
-                logger.error(f"Response: {response_routes.text}")
-                results['routing'] = 'failed'
-                return False
+                logger.error(f"Failed to configure route settings on {self.active_fw_list[0]['host']}: {response_route.status_code}")
+                logger.error(f"Response: {response_route.text}")
+                raise Exception("Virtual router configuration failed")
+            
+            # Step 2: Configure default route (original line ~215)
+            default_route_xpath = "/config/devices/entry[@name='localhost.localdomain']/network/virtual-router/entry[@name='default']/routing-table/ip/static-route/entry[@name='default_route']"
+            default_route_config_url = f"https://{self.active_fw_list[0]['host']}/api/"
+            default_route_params = {
+                'type': 'config',
+                'action': 'set',
+                'xpath': default_route_xpath,
+                'element': self.pa_static_routes_tmp,
+                'key': self.active_fw_headers[0]['X-PAN-KEY']
+            }
+            response_default_route = requests.get(default_route_config_url, params=default_route_params, verify=False, timeout=30)
+            if response_default_route.status_code == 200:
+                logger.info(f"Default route configured successfully on {self.active_fw_list[0]['host']}")
+                logger.info(f"Response: {response_default_route.text}")
+            else:
+                logger.error(f"Failed to configure default route on {self.active_fw_list[0]['host']}: {response_default_route.status_code}")
+                logger.error(f"Response: {response_default_route.text}")
+                raise Exception("Static route configuration failed")
                 
         except Exception as e:
-            logger.error(f"Error configuring routing: {e}")
-            results['routing'] = 'error'
-            return False
-    
-    def _configure_security_policies(self, host, api_key, results):
-        """Configure security policies - fresh deployment, always apply"""
+            logger.error(f"Error configuring routes {self.active_fw_list[0]['host']}: {e}")
+            raise
+
+    def act_fw_security_policy_config(self):
+        """Configure security policies - matching original"""
         try:
-            logger.info("Configuring security policies (fresh deployment)...")
-            
-            # Load security policy template
-            from utils_pa import PA_SECURITY_TEMPLATE
-            with open(PA_SECURITY_TEMPLATE, 'r') as f:
-                pa_security_policy_tmp = f.read()
-            
-            logger.info(f"Loaded security template: {len(pa_security_policy_tmp)} characters")
-            
             security_policy_xpath = "/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/rulebase/security/rules"
-            config_url = f"https://{host}/api/"
+            security_policy_config_url = f"https://{self.active_fw_list[0]['host']}/api/"
             security_policy_params = {
                 'type': 'config',
                 'action': 'set',
                 'xpath': security_policy_xpath,
-                'element': pa_security_policy_tmp,
-                'key': api_key
+                'element': self.pa_security_policy_tmp,
+                'key': self.active_fw_headers[0]['X-PAN-KEY']
             }
-
-            response = requests.get(config_url, params=security_policy_params, verify=False, timeout=30)
-            
-            if response.status_code == 200:
-                logger.info("Security policies configured successfully")
-                logger.debug(f"Response: {response.text}")
-                results['security_policies'] = 'success'
-                return True
+            response_security_policy = requests.get(security_policy_config_url, params=security_policy_params, verify=False, timeout=30)
+            if response_security_policy.status_code == 200:
+                logger.info(f"Security policies configured successfully on {self.active_fw_list[0]['host']}")
+                logger.info(f"Response: {response_security_policy.text}")
             else:
-                logger.error(f"Failed to configure security policies: {response.status_code}")
-                logger.error(f"Response: {response.text}")
-                results['security_policies'] = 'failed'
-                return False
+                logger.error(f"Failed to configure security policies on {self.active_fw_list[0]['host']}: {response_security_policy.status_code}")
+                logger.error(f"Response: {response_security_policy.text}")
+                raise Exception("Security policy configuration failed")
                 
         except Exception as e:
             logger.error(f"Error configuring security policies: {e}")
-            results['security_policies'] = 'error'
-            return False
-    
-    def _configure_source_nat(self, host, api_key, results):
-        """Configure source NAT - fresh deployment, always apply"""
+            raise
+            
+    def act_fw_source_nat_config(self):
+        """Configure source NAT rules - matching original xpath and your working template"""
         try:
-            logger.info("Configuring source NAT (fresh deployment)...")
+            # Get environment variables to match template placeholders
+            ethernet1_2_ip_untrust = os.getenv('ETHERNET1_2_IP_UNTRUST', '200.200.200.2/24')
+            # Remove the /24 subnet mask for NAT IP
+            ethernet1_2_ip_clean = ethernet1_2_ip_untrust.split('/')[0]
             
-            # Load source NAT template
-            from utils_pa import PA_NAT_TEMPLATE
-            with open(PA_NAT_TEMPLATE, 'r') as f:
-                pa_source_nat_tmp = f.read()
+            untrust_zone = os.getenv('UNTRUST', 'ethernet1/2') 
+            trust_zone = os.getenv('TRUST', 'ethernet1/1')
+            dmz_zone = os.getenv('DMZ', 'ethernet1/3')
             
-            logger.info(f"Loaded NAT template: {len(pa_source_nat_tmp)} characters")
+            # Format NAT template with correct variables to match your working template
+            formatted_nat_xml = self.pa_source_nat_tmp.format(
+                ETHERNET1_2_IP_untrust=ethernet1_2_ip_clean,  # Clean IP without subnet
+                untrust=untrust_zone,
+                trust=trust_zone, 
+                dmz=dmz_zone
+            )
             
+            logger.debug(f"Formatted NAT XML: {formatted_nat_xml}")
+            
+            # Use original xpath - configure NAT rules collection, not individual rule
             source_nat_xpath = "/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']/rulebase/nat/rules"
-            config_url = f"https://{host}/api/"
+            source_nat_config_url = f"https://{self.active_fw_list[0]['host']}/api/"
             source_nat_params = {
                 'type': 'config',
                 'action': 'set',
                 'xpath': source_nat_xpath,
-                'element': pa_source_nat_tmp,
-                'key': api_key
+                'element': formatted_nat_xml,
+                'key': self.active_fw_headers[0]['X-PAN-KEY']
             }
-
-            response = requests.get(config_url, params=source_nat_params, verify=False, timeout=30)
-            
-            if response.status_code == 200:
-                logger.info("Source NAT configured successfully")
-                logger.debug(f"Response: {response.text}")
-                results['source_nat'] = 'success'
-                return True
+            response_source_nat = requests.get(source_nat_config_url, params=source_nat_params, verify=False, timeout=30)
+            if response_source_nat.status_code == 200:
+                logger.info(f"Source NAT configured successfully on {self.active_fw_list[0]['host']}")
+                logger.info(f"Response: {response_source_nat.text}")
             else:
-                logger.error(f"Failed to configure source NAT: {response.status_code}")
-                logger.error(f"Response: {response.text}")
-                results['source_nat'] = 'failed'
-                return False
+                logger.error(f"Failed to configure source NAT on {self.active_fw_list[0]['host']}: {response_source_nat.status_code}")
+                logger.error(f"Response: {response_source_nat.text}")
+                raise Exception("Source NAT configuration failed")
                 
         except Exception as e:
             logger.error(f"Error configuring source NAT: {e}")
-            results['source_nat'] = 'error'
-            return False
+            raise

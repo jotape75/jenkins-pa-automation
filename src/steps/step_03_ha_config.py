@@ -52,6 +52,12 @@ class Step03_HAConfig:
                     ha_config_template = f.read()
                 with open(PA_HA_INTERFACE_TEMPLATE, 'r') as f:
                     ha_int_template = f.read()
+                
+                # Debug template loading
+                logger.info(f"HA Config Template Path: {PA_HA_CONFIG_TEMPLATE}")
+                logger.info(f"HA Interface Template Path: {PA_HA_INTERFACE_TEMPLATE}")
+                logger.debug(f"HA Config Template Content: {ha_config_template}")
+                logger.debug(f"HA Interface Template Content: {ha_int_template}")
                 logger.info("Loaded HA configuration templates")
             except Exception as e:
                 logger.error(f"Failed to load HA config templates: {e}")
@@ -63,27 +69,16 @@ class Step03_HAConfig:
             ha1_ip_1 = os.getenv('HA1_IP_1', '1.1.1.1')
             ha1_ip_2 = os.getenv('HA1_IP_2', '1.1.1.2')
             
-            # Get interface names from Jenkins parameters or defaults
-            ha1_interface = os.getenv('HA1_INTERFACE', 'ethernet1/4')
-            ha2_interface = os.getenv('HA2_INTERFACE', 'ethernet1/5')
-            
             # HA configurations matching your original working pattern exactly
             ha_configs = [
                 {'device_priority': '100', 'preemptive': 'yes', 'peer_ip': peer_ip_1},
                 {'device_priority': '110', 'preemptive': 'no', 'peer_ip': peer_ip_2}
             ]
 
+            # Use only ha1_ip like your original - no port parameters
             interface_configs = [
-                {
-                    'ha1_ip': ha1_ip_1,
-                    'ha1_port': ha1_interface,
-                    'ha2_port': ha2_interface
-                },
-                {
-                    'ha1_ip': ha1_ip_2,
-                    'ha1_port': ha1_interface,
-                    'ha2_port': ha2_interface
-                }
+                {'ha1_ip': ha1_ip_1},
+                {'ha1_ip': ha1_ip_2}
             ]
             
             configured_devices = []
@@ -103,6 +98,7 @@ class Step03_HAConfig:
                         'action': 'set',
                         'xpath': "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/high-availability",
                         'element': '<enabled>yes</enabled>',
+                        'override': 'yes',
                         'key': headers['X-PAN-KEY']
                     }
                     response_basic = requests.get(ha_url, params=basic_ha_params, verify=False, timeout=30)
@@ -136,6 +132,7 @@ class Step03_HAConfig:
                         'type': 'config',
                         'action': 'set',
                         'xpath': "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/high-availability/group",
+                        'override': 'yes',
                         'element': group_xml,
                         'key': headers['X-PAN-KEY']
                     }
@@ -152,13 +149,9 @@ class Step03_HAConfig:
                     logger.info(f"Configuring HA interfaces on {host}")
                     config = interface_configs[i]
                     
-                    # Format the interface template with proper substitution
+                    # Use ONLY ha1_ip like the original - no port parameters
                     try:
-                        interface_xml = ha_int_template.format(
-                            ha1_ip=config['ha1_ip'],
-                            ha1_port=config['ha1_port'],       # ✅ Matches {ha1_port}
-                            ha2_port=config['ha2_port']        # ✅ Matches {ha2_port}
-                        )
+                        interface_xml = ha_int_template.format(ha1_ip=config['ha1_ip'])
                         logger.debug(f"Interface XML for {host}: {interface_xml}")
                     except KeyError as e:
                         logger.error(f"Interface template formatting error for {host}: {e}")
@@ -170,6 +163,7 @@ class Step03_HAConfig:
                         'type': 'config',
                         'action': 'set',
                         'xpath': "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/high-availability/interface",
+                        'override': 'yes',
                         'element': interface_xml,
                         'key': headers['X-PAN-KEY']
                     }
@@ -213,6 +207,38 @@ class Step03_HAConfig:
             except Exception as commit_error:
                 logger.warning(f"Commit error - but configuration was applied: {commit_error}")
                 # Continue anyway as HA configuration might still be functional
+            
+            # Force enable HA on both devices after commit
+            logger.info("Force enabling HA on both devices...")
+            for device, headers in zip(pa_credentials, api_keys_list):
+                try:
+                    ha_url = f"https://{device['host']}/api/"
+                    
+                    # Force enable HA
+                    enable_ha_params = {
+                        'type': 'config',
+                        'action': 'set',
+                        'xpath': "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/high-availability/enabled",
+                        'element': 'yes',
+                        'override': 'yes',
+                        'key': headers['X-PAN-KEY']
+                    }
+                    response = requests.get(ha_url, params=enable_ha_params, verify=False, timeout=30)
+                    if response.status_code == 200:
+                        logger.info(f"HA force-enabled on {device['host']}")
+                    else:
+                        logger.warning(f"Could not force-enable HA on {device['host']}: {response.status_code}")
+                        
+                except Exception as e:
+                    logger.warning(f"Error force-enabling HA on {device['host']}: {e}")
+
+            # Commit the HA enable
+            logger.info("Committing HA enable...")
+            try:
+                from utils_pa import commit_changes
+                commit_changes(pa_credentials, api_keys_list, "HA Enable")
+            except Exception as e:
+                logger.warning(f"HA enable commit error: {e}")
             
             # Verify HA status on both devices
             logger.info("Verifying HA configuration...")
