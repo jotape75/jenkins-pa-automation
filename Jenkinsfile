@@ -73,35 +73,35 @@ pipeline {
             }
         }
         
-        stage('Enable HA Interfaces') {
-            steps {
-                sh 'python3 src/main.py --step ha_interfaces'
-            }
-        }
-        
-        stage('Configure HA Settings') {
-            steps {
-                sh 'python3 src/main.py --step ha_config'
-            }
-        }
-        
-        stage('Identify Active Firewall') {
-            steps {
-                sh 'python3 src/main.py --step identify_active'
-            }
-        }
-        
-        // stage('Complete Firewall Configuration') {
+        // stage('Enable HA Interfaces') {
         //     steps {
-        //         sh 'python3 src/main.py --step firewall_config'
+        //         sh 'python3 src/main.py --step ha_interfaces'
         //     }
         // }
         
-        // stage('Commit & Sync Configuration') {
+        // stage('Configure HA Settings') {
         //     steps {
-        //         sh 'python3 src/main.py --step commit'
+        //         sh 'python3 src/main.py --step ha_config'
         //     }
         // }
+        
+        // stage('Identify Active Firewall') {
+        //     steps {
+        //         sh 'python3 src/main.py --step identify_active'
+        //     }
+        // }
+        
+        stage('Complete Firewall Configuration') {
+            steps {
+                sh 'python3 src/main.py --step firewall_config'
+            }
+        }
+        
+        stage('Commit & Sync Configuration') {
+            steps {
+                sh 'python3 src/main.py --step commit'
+            }
+        }
     }
     
     post {

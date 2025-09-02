@@ -29,10 +29,10 @@ class TemplateUpdater:
             'ha1_interface': os.getenv('HA1_INTERFACE', 'ethernet1/4'),
             'ha2_interface': os.getenv('HA2_INTERFACE', 'ethernet1/5'),
             
-            # Data Interface IPs
-            'ethernet1_1_ip_trust': os.getenv('ETHERNET1_1_IP_trust', '10.10.10.5/24'),
-            'ethernet1_2_ip_untrust': os.getenv('ETHERNET1_2_IP_untrust', '200.200.200.2/24'),
-            'ethernet1_3_ip_dmz': os.getenv('ETHERNET1_3_IP_dmz', '10.30.30.5/24'),
+            # Data Interface IPs - FIXED TO MATCH JENKINS & STEP 5
+            'ethernet1_1_ip_trust': os.getenv('ETHERNET1_1_IP_TRUST', '10.10.10.5/24'),
+            'ethernet1_2_ip_untrust': os.getenv('ETHERNET1_2_IP_UNTRUST', '200.200.200.2/24'),
+            'ethernet1_3_ip_dmz': os.getenv('ETHERNET1_3_IP_DMZ', '10.30.30.5/24'),
             
             # Gateway/Routing
             'default_gateway': os.getenv('DEFAULT_GATEWAY', '200.200.200.1'),
@@ -42,10 +42,10 @@ class TemplateUpdater:
             # NAT
             'source_nat_ip': os.getenv('SOURCE_NAT_IP', '200.200.200.10'),
             
-            # Security Zones
-            'trust': os.getenv('trust', 'ethernet1/1'),
-            'untrust': os.getenv('untrust', 'ethernet1/2'),
-            'dmz': os.getenv('dmz', 'ethernet1/3')
+            # Security Zones - FIXED TO MATCH JENKINS & STEP 5
+            'trust': os.getenv('TRUST', 'ethernet1/1'),
+            'untrust': os.getenv('UNTRUST', 'ethernet1/2'),
+            'dmz': os.getenv('DMZ', 'ethernet1/3')
         }
     
     def update_data_interface_template(self):
@@ -56,10 +56,11 @@ class TemplateUpdater:
             content = f.read()
         
         # Replace placeholders with Jenkins environment variables
-        content = content.replace('{ETHERNET1_1_IP_trust}', os.getenv('ETHERNET1_1_IP_trust', ''))
-        content = content.replace('{ETHERNET1_2_IP_untrust}', os.getenv('ETHERNET1_2_IP_untrust', ''))
-        content = content.replace('{ETHERNET1_3_IP_dmz}', os.getenv('ETHERNET1_3_IP_dmz', ''))
-        
+        content = content.replace('{ETHERNET1_1_IP_TRUST}', os.getenv('ETHERNET1_1_IP_TRUST', ''))
+        content = content.replace('{ETHERNET1_2_IP_UNTRUST}', os.getenv('ETHERNET1_2_IP_UNTRUST', ''))
+        content = content.replace('{ETHERNET1_3_IP_DMZ}', os.getenv('ETHERNET1_3_IP_DMZ', ''))
+
+            
         with open(template_file, 'w') as f:
             f.write(content)
         
@@ -81,16 +82,16 @@ class TemplateUpdater:
         with open(template_file, 'r') as f:
             content = f.read()
         
-        # Replace placeholders with Jenkins environment variables
+        # Replace placeholders with Jenkins environment variables - FIXED CASE
         content = content.replace('{STATIC_ROUTE_NETWORK}', os.getenv('STATIC_ROUTE_NETWORK', '0.0.0.0/0'))
         content = content.replace('{STATIC_ROUTE_NEXTHOP}', os.getenv('STATIC_ROUTE_NEXTHOP', ''))
-        content = content.replace('{untrust}', os.getenv('untrust', 'ethernet1/2'))
+        content = content.replace('{untrust}', os.getenv('UNTRUST', 'ethernet1/2'))  # ✅ FIXED
         
         with open(template_file, 'w') as f:
             f.write(content)
         
         logger.info("Updated routing template with Jenkins parameters")
-    
+
     def update_nat_template(self):
         """Update NAT template with Jenkins parameters"""
         template_file = f"{self.data_dir}/source_nat_template.xml"
@@ -98,11 +99,11 @@ class TemplateUpdater:
         with open(template_file, 'r') as f:
             content = f.read()
         
-        # Replace placeholders with Jenkins environment variables
-        content = content.replace('{ETHERNET1_2_IP_untrust}', os.getenv('ETHERNET1_2_IP_untrust', ''))
-        content = content.replace('{untrust}', os.getenv('untrust', 'ethernet1/2'))
-        content = content.replace('{trust}', os.getenv('trust', 'ethernet1/1'))
-        content = content.replace('{dmz}', os.getenv('dmz', 'ethernet1/3'))
+        # Replace placeholders with Jenkins environment variables - FIXED CASE
+        content = content.replace('{ETHERNET1_2_IP_UNTRUST}', os.getenv('ETHERNET1_2_IP_UNTRUST', ''))  # ✅ FIXED
+        content = content.replace('{untrust}', os.getenv('UNTRUST', 'ethernet1/2'))  # ✅ FIXED
+        content = content.replace('{trust}', os.getenv('TRUST', 'ethernet1/1'))      # ✅ FIXED
+        content = content.replace('{dmz}', os.getenv('DMZ', 'ethernet1/3'))          # ✅ FIXED
         
         with open(template_file, 'w') as f:
             f.write(content)
@@ -117,9 +118,9 @@ class TemplateUpdater:
             content = f.read()
         
         # Replace placeholders with Jenkins environment variables
-        content = content.replace('{trust}', os.getenv('trust', 'ethernet1/1'))
-        content = content.replace('{untrust}', os.getenv('untrust', 'ethernet1/2'))
-        content = content.replace('{dmz}', os.getenv('dmz', 'ethernet1/3'))
+        content = content.replace('{TRUST}', os.getenv('TRUST', ''))
+        content = content.replace('{UNTRUST}', os.getenv('UNTRUST', ''))
+        content = content.replace('{DMZ}', os.getenv('DMZ', ''))
         
         with open(template_file, 'w') as f:
             f.write(content)
