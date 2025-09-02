@@ -56,9 +56,9 @@ class TemplateUpdater:
             content = f.read()
         
         # Replace placeholders with Jenkins environment variables
-        content = content.replace('{ETHERNET1_1_IP_TRUST}', os.getenv('ETHERNET1_1_IP_TRUST', ''))
-        content = content.replace('{ETHERNET1_2_IP_UNTRUST}', os.getenv('ETHERNET1_2_IP_UNTRUST', ''))
-        content = content.replace('{ETHERNET1_3_IP_DMZ}', os.getenv('ETHERNET1_3_IP_DMZ', ''))
+        content = content.replace('{ETHERNET1_1_IP_trust}', os.getenv('ETHERNET1_1_IP_TRUST', ''))
+        content = content.replace('{ETHERNET1_2_IP_untrust}', os.getenv('ETHERNET1_2_IP_UNTRUST', ''))
+        content = content.replace('{ETHERNET1_3_IP_dmz}', os.getenv('ETHERNET1_3_IP_DMZ', ''))
 
             
         with open(template_file, 'w') as f:
@@ -85,7 +85,7 @@ class TemplateUpdater:
         # Replace placeholders with Jenkins environment variables - FIXED CASE
         content = content.replace('{STATIC_ROUTE_NETWORK}', os.getenv('STATIC_ROUTE_NETWORK', '0.0.0.0/0'))
         content = content.replace('{STATIC_ROUTE_NEXTHOP}', os.getenv('STATIC_ROUTE_NEXTHOP', ''))
-        content = content.replace('{untrust}', os.getenv('UNTRUST', 'ethernet1/2'))  # ✅ FIXED
+        content = content.replace('{untrust}', os.getenv('UNTRUST', 'ethernet1/2'))  
         
         with open(template_file, 'w') as f:
             f.write(content)
@@ -99,11 +99,10 @@ class TemplateUpdater:
         with open(template_file, 'r') as f:
             content = f.read()
         
-        # Replace placeholders with Jenkins environment variables - FIXED CASE
-        content = content.replace('{ETHERNET1_2_IP_UNTRUST}', os.getenv('ETHERNET1_2_IP_UNTRUST', ''))  # ✅ FIXED
-        content = content.replace('{untrust}', os.getenv('UNTRUST', 'ethernet1/2'))  # ✅ FIXED
-        content = content.replace('{trust}', os.getenv('TRUST', 'ethernet1/1'))      # ✅ FIXED
-        content = content.replace('{dmz}', os.getenv('DMZ', 'ethernet1/3'))          # ✅ FIXED
+        content = content.replace('{ETHERNET1_2_IP_UNTRUST}', os.getenv('ETHERNET1_2_IP_UNTRUST', ''))  
+        content = content.replace('{untrust}', os.getenv('UNTRUST', 'ethernet1/2'))  
+        content = content.replace('{trust}', os.getenv('TRUST', 'ethernet1/1'))      
+        content = content.replace('{dmz}', os.getenv('DMZ', 'ethernet1/3'))         
         
         with open(template_file, 'w') as f:
             f.write(content)
