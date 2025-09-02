@@ -93,13 +93,16 @@ class Step03_HAConfig:
                 # Step 3: Configure HA interfaces
                 logger.info(f"Configuring HA interfaces on {host}")
                 config = interface_configs[i]
-                
+                logger.info(f"Device {host} (index {i}) getting HA1 IP: {config['ha1_ip']}")
+
                 interface_xml = self.pa_ha_int_tmp.format(
                     ha1_ip=config['ha1_ip'],
                     ha1_port=config['ha1_port'],
                     ha2_port=config['ha2_port']
                 )
                 
+                logger.info(f"Device {host} interface XML: {interface_xml}")
+
                 interface_params = {
                     'type': 'config',
                     'action': 'set',
