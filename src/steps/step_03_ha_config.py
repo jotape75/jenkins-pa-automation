@@ -50,22 +50,20 @@ class Step03_HAConfig:
             # Load HA configuration templates using your existing constants
             self.load_ha_templates()
             
-            # HA configurations from Jenkins parameters or defaults
-            peer_ip_1 = os.getenv('HA_PEER_IP_1', '1.1.1.2')
-            peer_ip_2 = os.getenv('HA_PEER_IP_2', '1.1.1.1')
-            ha1_ip_1 = os.getenv('HA1_IP_1', '1.1.1.1')
-            ha1_ip_2 = os.getenv('HA1_IP_2', '1.1.1.2')
+            # # HA configurations from Jenkins parameters or defaults
+            ha1_port = os.getenv('HA1_INTERFACE', 'ethernet1/4')
+            ha2_port = os.getenv('HA2_INTERFACE', 'ethernet1/5')
             
             # HA configurations matching your original working pattern exactly
             ha_configs = [
-                {'device_priority': '100', 'preemptive': 'yes', 'peer_ip': peer_ip_1},
-                {'device_priority': '110', 'preemptive': 'no', 'peer_ip': peer_ip_2}
+                {'device_priority': '100', 'preemptive': 'yes', 'peer_ip': '1.1.1.2'},
+                {'device_priority': '110', 'preemptive': 'no', 'peer_ip': '1.1.1.1'}
             ]
 
-            # Use only ha1_ip like your original - no port parameters
+            # Use HA ports from Jenkins parameters
             interface_configs = [
-                {'ha1_ip': ha1_ip_1},
-                {'ha1_ip': ha1_ip_2}
+                {'ha1_ip': '1.1.1.1', 'ha1_port': ha1_port, 'ha2_port': ha2_port},
+                {'ha1_ip': '1.1.1.2', 'ha1_port': ha1_port, 'ha2_port': ha2_port}
             ]
             
             configured_devices = []
@@ -125,7 +123,11 @@ class Step03_HAConfig:
                     config = interface_configs[i]
                     
                     # Use ONLY ha1_ip like the original
-                    interface_xml = self.pa_ha_int_tmp.format(ha1_ip=config['ha1_ip'])
+                    interface_xml = self.pa_ha_int_tmp.format(
+                        ha1_ip=config['ha1_ip'],
+                        ha1_port=config['ha1_port'],
+                        ha2_port=config['ha2_port']
+                    )
                     
                     interface_params = {
                         'type': 'config',
