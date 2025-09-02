@@ -1,21 +1,21 @@
 <entry name="trust">
     <network>
         <layer3>
-            <member>{trust}</member>
+            <member>{TRUST}</member>
         </layer3>
     </network>
 </entry>
 <entry name="untrust">
     <network>
         <layer3>
-            <member>{untrust}</member>
+            <member>{UNTRUST}</member>
         </layer3>
     </network>
 </entry>
 <entry name="dmz">
     <network>
         <layer3>
-            <member>{dmz}</member>
+            <member>{DMZ}</member>
         </layer3>
     </network>
 </entry>

@@ -2,16 +2,16 @@
     <source-translation>
         <dynamic-ip-and-port>
             <interface-address>
-                <ip>{ETHERNET1_2_IP_untrust}</ip>
-                <interface>{untrust}</interface>
+                <ip>{ETHERNET1_2_IP_UNTRUST}</ip>
+                <interface>{UNTRUST}</interface>
             </interface-address>
         </dynamic-ip-and-port>
     </source-translation>
     <to>
-        <member>Untrust</member>
+        <member>{UNTRUST}</member>
     </to>
     <from>
-        <member>Trust</member>
+        <member>{TRUST}</member>
     </from>
     <source>
         <member>any</member>
@@ -20,22 +20,22 @@
         <member>any</member>
     </destination>
     <service>any</service>
-    <to-interface>{untrust}</to-interface>
+    <to-interface>{UNTRUST}</to-interface>
 </entry>
 <entry name="DMZ_to_Untrust_NAT">
     <source-translation>
         <dynamic-ip-and-port>
             <interface-address>
-                <ip>{ETHERNET1_2_IP_untrust}</ip>
-                <interface>{untrust}</interface>
+                <ip>{ETHERNET1_2_IP_UNTRUST}</ip>
+                <interface>{UNTRUST}</interface>
             </interface-address>
         </dynamic-ip-and-port>
     </source-translation>
     <to>
-        <member>Untrust</member>
+        <member>{UNTRUST}</member>
     </to>
     <from>
-        <member>DMZ</member>
+        <member>{DMZ}</member>
     </from>
     <source>
         <member>any</member>
@@ -44,5 +44,5 @@
         <member>any</member>
     </destination>
     <service>any</service>
-    <to-interface>{untrust}</to-interface>
+    <to-interface>{UNTRUST}</to-interface>
 </entry>
