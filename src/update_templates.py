@@ -56,9 +56,9 @@ class TemplateUpdater:
             content = f.read()
         
         # Replace placeholders with Jenkins environment variables
-        content = content.replace('{ETHERNET1_1_IP_trust}', os.getenv('ETHERNET1_1_IP_TRUST', ''))
-        content = content.replace('{ETHERNET1_2_IP_untrust}', os.getenv('ETHERNET1_2_IP_UNTRUST', ''))
-        content = content.replace('{ETHERNET1_3_IP_dmz}', os.getenv('ETHERNET1_3_IP_DMZ', ''))
+        content = content.replace('{ETHERNET1_1_IP_TRUST}', os.getenv('ETHERNET1_1_IP_TRUST', ''))
+        content = content.replace('{ETHERNET1_2_IP_UNTRUST}', os.getenv('ETHERNET1_2_IP_UNTRUST', ''))
+        content = content.replace('{ETHERNET1_3_IP_DMZ}', os.getenv('ETHERNET1_3_IP_DMZ', ''))
 
             
         with open(template_file, 'w') as f:
