@@ -97,17 +97,17 @@ pipeline {
             }
         }
         
-        stage('Complete Firewall Configuration') {
-            steps {
-                sh 'python3 src/main.py --step firewall_config'
-            }
-        }
+        // stage('Complete Firewall Configuration') {
+        //     steps {
+        //         sh 'python3 src/main.py --step firewall_config'
+        //     }
+        // }
         
-        stage('Commit & Sync Configuration') {
-            steps {
-                sh 'python3 src/main.py --step commit'
-            }
-        }
+        // stage('Commit & Sync Configuration') {
+        //     steps {
+        //         sh 'python3 src/main.py --step commit'
+        //     }
+        // }
     }
     
     post {

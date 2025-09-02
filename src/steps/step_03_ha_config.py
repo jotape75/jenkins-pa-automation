@@ -206,8 +206,7 @@ class Step03_HAConfig:
     
     def commit_changes(self, pa_credentials, api_keys_list):
         """
-        Commit configuration changes using working pattern from original.
-        EXACT COPY of commit logic from pa_deployment_ha.py
+        Commit configuration changes using EXACT working logic from pa_deployment_ha.py
         """
         jobid_dict = {}
         ready_devices = {}
@@ -232,18 +231,17 @@ class Step03_HAConfig:
                     result = root.find(".//result")
                     if result is not None:
                         jobid = result.findtext("job")
-                        if jobid:
-                            # Store device info with job ID - EXACT PATTERN
-                            unique_key = f"{device['host']}_{jobid}"
-                            jobid_dict[unique_key] = {
-                                'device': device,
-                                'headers': headers,
-                                'host': device['host'],
-                                'jobid': jobid
-                            }
-                            logger.info(f"Commit job ID for {device['host']}: {jobid}")
+                        # Store device info with job ID - EXACT PATTERN
+                        unique_key = f"{device['host']}_{jobid}"
+                        jobid_dict[unique_key] = {
+                            'device': device,
+                            'headers': headers,
+                            'host': device['host'],
+                            'jobid': jobid
+                        }
+                        logger.info(f"Commit job ID for {device['host']}: {jobid}")
             except Exception as e:
-                logger.error(f"Error committing changes for {device['host']}: {e}") 
+                logger.debug(f"Error committing changes for {device['host']}: {e}") 
         
         # Check if any jobs were started       
         if not jobid_dict:
@@ -252,11 +250,8 @@ class Step03_HAConfig:
             
         # Step 2: Monitor jobs until all complete - EXACT COPY
         logger.info(f"Monitoring {len(jobid_dict)} commit jobs...")
-        max_wait_time = 300  # 5 minutes max wait
-        start_time = time.time()
-        
         try:
-            while jobid_dict and (time.time() - start_time) < max_wait_time:
+            while jobid_dict:
                 completed_jobs = []
                 for unique_key, job_info in jobid_dict.items():
                     device = job_info['device']
@@ -285,6 +280,7 @@ class Step03_HAConfig:
                             
                             if job_status == "ACT":
                                 logger.info(f"Commit running for {host}, progress {job_progress}%")
+                                time.sleep(15)  # Wait before checking again
                             elif job_status == "FIN":
                                 if job_result == "OK":
                                     logger.info(f"Commit completed successfully for {host}")
@@ -301,10 +297,6 @@ class Step03_HAConfig:
                 if len(ready_devices) == len(pa_credentials):
                     logger.info("All commits completed successfully for HA Configuration!")
                     return True
-                
-                # Wait before checking again
-                if jobid_dict:  # Only sleep if there are still jobs to monitor
-                    time.sleep(15)
                     
         except Exception as e:
             logger.error(f"Error monitoring commits: {e}")
