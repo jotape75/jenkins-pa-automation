@@ -73,23 +73,23 @@ pipeline {
             }
         }
         
-        // stage('Enable HA Interfaces') {
-        //     steps {
-        //         sh 'python3 src/main.py --step ha_interfaces'
-        //     }
-        // }
+        stage('Enable HA Interfaces') {
+            steps {
+                sh 'python3 src/main.py --step ha_interfaces'
+            }
+        }
         
-        // stage('Configure HA Settings') {
-        //     steps {
-        //         sh 'python3 src/main.py --step ha_config'
-        //     }
-        // }
+        stage('Configure HA Settings') {
+            steps {
+                sh 'python3 src/main.py --step ha_config'
+            }
+        }
         
-        // stage('Identify Active Firewall') {
-        //     steps {
-        //         sh 'python3 src/main.py --step identify_active'
-        //     }
-        // }
+        stage('Identify Active Firewall') {
+            steps {
+                sh 'python3 src/main.py --step identify_active'
+            }
+        }
         
         stage('Complete Firewall Configuration') {
             steps {
