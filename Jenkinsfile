@@ -55,12 +55,6 @@ pipeline {
                     env.USERNAME = params.USERNAME
                     env.PASSWORD = params.PASSWORD
                     
-                    // Hardcoded HA IP values
-                    env.HA_PEER_IP_1 = '1.1.1.2'
-                    env.HA_PEER_IP_2 = '1.1.1.1'
-                    env.HA1_IP_1 = '1.1.1.1'
-                    env.HA1_IP_2 = '1.1.1.2'
-                    
                     sh 'python3 src/update_templates.py'
                     
                     echo "Configuration Summary:"

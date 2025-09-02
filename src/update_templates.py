@@ -66,21 +66,13 @@ class TemplateUpdater:
         logger.info("Updated data interface template with Jenkins parameters")
     
     def update_ha_interface_template(self):
-        """Update HA interface template with Jenkins parameters"""
-        template_file = f"{self.data_dir}/paloalto_interface_ha_template.xml"
-        
-        with open(template_file, 'r') as f:
-            content = f.read()
-        
-        # Replace placeholders with Jenkins environment variables
-        content = content.replace('{ha1_port}', os.getenv('HA1_INTERFACE', 'ethernet1/4'))
-        content = content.replace('{ha2_port}', os.getenv('HA2_INTERFACE', 'ethernet1/5'))
-        content = content.replace('{ha1_ip}', os.getenv('HA1_IP_1', '1.1.1.1'))  # Fixed!
-        
-        with open(template_file, 'w') as f:
-            f.write(content)
-        
-        logger.info("Updated HA interface template with Jenkins parameters")
+        """
+        HA interface template should NOT be updated here - 
+        it needs dynamic IPs per device in step_03_ha_config.py
+        """
+        logger.info("HA interface template kept with placeholders for dynamic updates")
+        # Don't update this template - leave {ha1_ip} as placeholder
+        return
     
     def update_routing_template(self):
         """Update routing template with Jenkins parameters"""
