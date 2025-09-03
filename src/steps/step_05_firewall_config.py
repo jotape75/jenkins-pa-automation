@@ -108,9 +108,9 @@ class Step05_FirewallConfig:
             ethernet1_3_ip = os.getenv('ETHERNET1_3_IP_DMZ', '10.30.30.5/24')
             
             self.pa_interface_tmp = interface_tmp.format(
-                ethernet1_1_ip=ethernet1_1_ip,
-                ethernet1_2_ip=ethernet1_2_ip,
-                ethernet1_3_ip=ethernet1_3_ip
+                ETHERNET1_1_IP_TRUST=ethernet1_1_ip,
+                ETHERNET1_2_IP_UNTRUST=ethernet1_2_ip,
+                ETHERNET1_3_IP_DMZ=ethernet1_3_ip
             )
             
             # Load zones template and format it
@@ -122,9 +122,9 @@ class Step05_FirewallConfig:
             dmz_interface = os.getenv('DMZ', 'ethernet1/3')
             
             self.pa_zones_tmp = zones_tmp.format(
-                trust_interface=trust_interface,
-                untrust_interface=untrust_interface,
-                dmz_interface=dmz_interface
+                TRUST=trust_interface,
+                UNTRUST=untrust_interface,
+                DMZ=dmz_interface
             )
             
             # Load router settings template and format it
@@ -302,8 +302,8 @@ class Step05_FirewallConfig:
             
             # Format NAT template with correct variables
             formatted_nat_xml = self.pa_source_nat_tmp.format(
-                ETHERNET1_2_IP_untrust=ethernet1_2_ip_clean,  # Clean IP without subnet
-                untrust=untrust_interface  # Interface name (e.g., "ethernet1/2")
+                ETHERNET1_2_IP_UNTRUST=ethernet1_2_ip_clean,
+                UNTRUST=untrust_interface  
             )
             
             logger.debug(f"Formatted NAT XML: {formatted_nat_xml}")
