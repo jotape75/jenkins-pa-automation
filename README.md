@@ -1,4 +1,10 @@
-# 🔥 Jenkins Palo Alto Firewall HA Automation
+# 🔥🧱 Jenkins Palo Alto Firewall HA Automation
+
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Network Automation](https://img.shields.io/badge/Network-Automation-green.svg)](https://github.com/jotape75/jenkins_PA_automation)
+[![Palo Alto](https://img.shields.io/badge/Palo%20Alto-Firewall-orange.svg)](https://www.paloaltonetworks.com/)
+[![Jenkins](https://img.shields.io/badge/Jenkins-Pipeline-blue.svg)](https://jenkins.io/)
 
 A centralized Jenkins-based automation solution for deploying Palo Alto firewall High Availability (HA) pairs with comprehensive network configuration. This is an enhanced version of the [original host-based automation](https://github.com/jotape75/eve-ng_automation_PA), now redesigned for centralized execution through Jenkins CI/CD pipelines.
 
