@@ -144,6 +144,20 @@ HA2 Interface: ethernet1/5
 Default Gateway: 200.200.200.1
 ```
 
+## 📸 Screenshots
+
+### 🔧 Jenkins Parameter Form
+![Jenkins Parameters](screenshots/formoutput.png)
+*Form-based configuration interface - no file editing required*
+
+### 🚀 Pipeline Execution
+![Pipeline Stages](screenshots/pipeplineoutput.png)
+*Real-time stage progression with detailed logging*
+
+### 📊 Console Output Sample
+![Console Logs](screenshots/consoleoutput.png)
+*Detailed execution logs for troubleshooting and audit*
+
 ## ⭐ Key Features
 
 ### 🚀 **Zero File Modification**
