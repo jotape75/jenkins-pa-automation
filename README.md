@@ -79,13 +79,22 @@ jenkins_PA_automation/
 │       └── step_06_commit.py       # Configuration deployment
 ├── data/payload/                   # XML configuration templates
 │   ├── data_interface.xml          # Interface IP configuration
-│   ├── ha_interface.xml            # HA interface settings
 │   ├── initial_config_template.txt # Basic device configuration
+│   ├── paloalto_ha_template_config.xml # HA group configuration
+│   ├── paloalto_interface_ha_template.xml # HA interface settings
 │   ├── security_policy_template.xml # Inter-zone traffic policies
 │   ├── source_nat_template.xml     # NAT rule configurations
 │   ├── static_route_template.xml   # Routing configuration
+│   ├── virtual_router_template.xml # Virtual router setup
 │   └── zones.xml                   # Security zone definitions
+├── screenshots/                    # Documentation images
+│   ├── consoleoutput.png          # Jenkins console logs
+│   ├── formoutput.png             # Parameter form interface
+│   └── pipeplineoutput.png        # Pipeline execution view
+├── log/                           # Execution logs
 ├── Jenkinsfile                    # Pipeline definition
+├── LICENSE                        # MIT license
+├── README.md                      # Project documentation
 └── requirements.txt               # Python dependencies
 ```
 
