@@ -1,9 +1,15 @@
 """
 Step 1: API Key Generation for PA Firewalls
 
-Extracts the get_api_key logic from PaloAltoFirewall_HA class
-and adapts it for Jenkins execution without state manager.
-Now uses dynamic credentials from Jenkins form parameters.
+Generates API keys for multiple Palo Alto firewall devices using credentials
+provided through Jenkins form parameters. This step authenticates with each
+firewall device and creates the necessary API keys for subsequent automation
+steps. The generated keys are saved to a pickle file for use by other steps.
+
+Key Features:
+- Dynamic credential loading from Jenkins environment variables
+- Multi-device API key generation with error handling
+- Saves API keys and credentials for downstream automation steps
 """
 
 import requests
@@ -86,13 +92,13 @@ class Step01_APIKeys:
             # Get credentials from Jenkins form parameters
             pa_credentials = self._get_credentials_from_jenkins()
             
-            # Initialize lists (from your original __init__)
+            # Initialize lists 
             rest_api_keys_list = []
             api_keys_list = []
             
             logger.info(f"Generating API keys for {len(pa_credentials)} devices")
             
-            # Your exact original logic from get_api_key()
+            
             for device in pa_credentials:
                 try:
                     # API key request URL

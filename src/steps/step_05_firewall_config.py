@@ -1,8 +1,17 @@
 """
 Step 5: Complete Firewall Configuration
 
-Configure interfaces, zones, routing, security policies, and NAT
-on the active firewall only.
+Applies comprehensive firewall configuration to the active device only.
+Configures data interfaces, security zones, routing, policies, and NAT
+rules using Jenkins form parameters and pre-updated templates.
+
+Key Features:
+- Targets active firewall identified in step 4 for configuration
+- Configures ethernet interfaces with Trust/Untrust/DMZ IP assignments
+- Creates security zones and associates interfaces with zones
+- Sets up virtual router, default gateway, and static routes
+- Applies security policies and source NAT rules for zone-to-zone traffic
+- Uses environment variables from Jenkins for dynamic configuration
 """
 
 import requests
@@ -222,7 +231,7 @@ class Step05_FirewallConfig:
     def act_fw_route_config(self):
         """Configure virtual router and static routes - EXACT COPY of original"""
         try:
-            # Step 1: Configure virtual router settings (original line ~200)
+            # Step 1: Configure virtual router settings
             route_xpath = "/config/devices/entry[@name='localhost.localdomain']/network/virtual-router/entry[@name='default']"
             route_config_url = f"https://{self.active_fw_list[0]['host']}/api/"
             route_params = {
@@ -240,8 +249,8 @@ class Step05_FirewallConfig:
                 logger.error(f"Failed to configure route settings on {self.active_fw_list[0]['host']}: {response_route.status_code}")
                 logger.error(f"Response: {response_route.text}")
                 raise Exception("Virtual router configuration failed")
-            
-            # Step 2: Configure default route (original line ~215)
+
+            # Step 2: Configure default route
             default_route_xpath = "/config/devices/entry[@name='localhost.localdomain']/network/virtual-router/entry[@name='default']/routing-table/ip/static-route/entry[@name='default_route']"
             default_route_config_url = f"https://{self.active_fw_list[0]['host']}/api/"
             default_route_params = {

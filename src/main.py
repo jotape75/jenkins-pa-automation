@@ -1,8 +1,17 @@
 """
 Main orchestrator for PA Firewall Jenkins Automation
 
-Handles step-by-step execution based on command line arguments.
-Each step can be called independently by Jenkins stages.
+Command-line entry point for Jenkins-based Palo Alto firewall deployment.
+Executes individual automation steps based on arguments, with comprehensive
+logging and error handling for CI/CD pipeline integration.
+
+Key Features:
+- Step-by-step execution via command line arguments (--step)
+- Centralized logging with date-based log files and console output
+- Dynamic step importing and execution with success/failure reporting
+- Jenkins-compatible exit codes for pipeline flow control
+- Project root detection for flexible deployment environments
+- Comprehensive error handling with detailed logging for troubleshooting
 """
 
 import argparse

@@ -1,8 +1,15 @@
 """
 Step 2: Enable HA Interfaces for PA Firewalls
 
-For fresh deployments - always applies HA interface configuration
-without checking existing status.
+Configures High Availability interfaces on all firewall devices using
+Jenkins form parameters. Enables HA functionality on specified ethernet
+interfaces and commits the configuration to both devices.
+
+Key Features:
+- Dynamic HA interface selection from Jenkins parameters
+- Applies configuration to all devices simultaneously
+- Commits changes and saves state for subsequent steps
+- Designed for fresh deployments without status validation
 """
 
 import requests

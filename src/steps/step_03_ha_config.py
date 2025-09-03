@@ -1,6 +1,15 @@
 """
 Step 3: Configure HA Settings for PA Firewalls
-Simple replication of working pa_deployment_ha.py with environment variables
+
+Configures High Availability group settings and interface assignments for
+both firewall devices. Establishes active-passive HA relationship with
+proper priorities, peer IP addresses, and interface configurations.
+
+Key Features:
+- Configures HA group with device priorities and preemption settings
+- Assigns unique HA1 IP addresses to each device (1.1.1.1/1.1.1.2)
+- Commits configuration and verifies HA status establishment
+- Uses Jenkins parameters for interface selection (HA1/HA2 ports)
 """
 
 import requests
@@ -33,14 +42,13 @@ class Step03_HAConfig:
             api_keys_list = step_data['api_keys_list']
             logger.info("Fresh deployment - applying HA configuration")
             
-            # Load templates - EXACT COPY from working version
+            # Load templates 
             self.load_ha_templates()
             
             # Get environment variables for HA ports
             ha1_port = os.getenv('HA1_INTERFACE', 'ethernet1/4')
             ha2_port = os.getenv('HA2_INTERFACE', 'ethernet1/5')
             
-            # EXACT COPY from working version - just hardcoded configs
             ha_configs = [
                 {'device_priority': '100', 'preemptive': 'yes', 'peer_ip': '1.1.1.2'},
                 {'device_priority': '110', 'preemptive': 'no', 'peer_ip': '1.1.1.1'}
@@ -51,7 +59,6 @@ class Step03_HAConfig:
                 {'ha1_ip': '1.1.1.2', 'ha1_port': ha1_port, 'ha2_port': ha2_port}
             ]
             
-            # Configure HA on each device - EXACT COPY
             for i, (device, headers) in enumerate(zip(pa_credentials, api_keys_list)):
                 host = device['host']
                 logger.info(f"Configuring HA settings on {host} (fresh configuration)")
@@ -154,7 +161,6 @@ class Step03_HAConfig:
         logger.info("Loaded HA configuration templates")
     
     def commit_changes(self, pa_credentials, api_keys_list):
-        # EXACT COPY from working version - no changes
         jobid_dict = {}
         ready_devices = {}
 

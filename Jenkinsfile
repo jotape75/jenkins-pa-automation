@@ -1,3 +1,28 @@
+/*
+ * Jenkins Pipeline for Palo Alto Firewall HA Deployment
+ * 
+ * Automated deployment pipeline for configuring High Availability Palo Alto
+ * firewall pairs with comprehensive network configuration. Provides a form-based
+ * interface for dynamic parameter input and executes step-by-step automation.
+ * 
+ * Pipeline Stages:
+ * 1. Repository setup and dependency installation
+ * 2. Template preprocessing with Jenkins parameters
+ * 3. API key generation for firewall authentication
+ * 4. HA interface configuration and enablement
+ * 5. HA group settings and IP assignment
+ * 6. Active firewall identification
+ * 7. Complete firewall configuration (interfaces, zones, routing, policies, NAT)
+ * 8. Configuration commit and HA synchronization
+ * 
+ * Key Features:
+ * - Form-based parameter input for dynamic configuration
+ * - Support for multiple firewall devices in HA configuration
+ * - Comprehensive error handling and logging
+ * - Artifact archival for audit and troubleshooting
+ * - Password security with automatic cleanup
+ */
+
 pipeline {
     agent any
     

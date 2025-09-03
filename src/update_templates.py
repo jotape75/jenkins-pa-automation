@@ -1,6 +1,17 @@
 #!/usr/bin/env python3
 """
 Update XML templates with Jenkins parameter values
+
+Pre-processes configuration templates by replacing placeholders with values
+from Jenkins form parameters. Prepares templates for firewall configuration
+steps while maintaining dynamic placeholders where needed.
+
+Key Features:
+- Loads parameters from Jenkins environment variables
+- Updates data interface, routing, NAT, and zones templates
+- Preserves HA template placeholders for per-device configuration
+- Handles both static values and dynamic interface assignments
+- Validates template updates with comprehensive error handling
 """
 
 import os
@@ -29,7 +40,7 @@ class TemplateUpdater:
             'ha1_interface': os.getenv('HA1_INTERFACE', 'ethernet1/4'),
             'ha2_interface': os.getenv('HA2_INTERFACE', 'ethernet1/5'),
             
-            # Data Interface IPs - FIXED TO MATCH JENKINS & STEP 5
+            # Data Interface IPs 
             'ethernet1_1_ip_trust': os.getenv('ETHERNET1_1_IP_TRUST', '10.10.10.5/24'),
             'ethernet1_2_ip_untrust': os.getenv('ETHERNET1_2_IP_UNTRUST', '200.200.200.2/24'),
             'ethernet1_3_ip_dmz': os.getenv('ETHERNET1_3_IP_DMZ', '10.30.30.5/24'),
@@ -42,7 +53,7 @@ class TemplateUpdater:
             # NAT
             'source_nat_ip': os.getenv('SOURCE_NAT_IP', '200.200.200.10'),
             
-            # Security Zones - FIXED TO MATCH JENKINS & STEP 5
+            # Security Zones 
             'trust': os.getenv('TRUST', 'ethernet1/1'),
             'untrust': os.getenv('UNTRUST', 'ethernet1/2'),
             'dmz': os.getenv('DMZ', 'ethernet1/3')
@@ -82,7 +93,7 @@ class TemplateUpdater:
         with open(template_file, 'r') as f:
             content = f.read()
         
-        # Replace placeholders with Jenkins environment variables - FIXED CASE
+        # Replace placeholders with Jenkins environment variables 
         content = content.replace('{STATIC_ROUTE_NETWORK}', os.getenv('STATIC_ROUTE_NETWORK', '0.0.0.0/0'))
         content = content.replace('{STATIC_ROUTE_NEXTHOP}', os.getenv('STATIC_ROUTE_NEXTHOP', ''))
         content = content.replace('{untrust}', os.getenv('UNTRUST', 'ethernet1/2'))  

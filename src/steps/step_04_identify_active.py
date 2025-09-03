@@ -1,7 +1,16 @@
 """
 Step 4: Identify Active Firewall in HA Pair
 
-For fresh deployments - waits for HA to establish and identifies active firewall.
+Waits for HA establishment and identifies the active firewall device for
+subsequent configuration steps. Includes retry logic and fallback handling
+for fresh deployments where HA may take time to stabilize.
+
+Key Features:
+- 30-second initial wait for HA establishment after step 3
+- Multi-attempt identification with configurable retry intervals
+- Queries HA state via API to determine active/passive roles
+- Fallback to first device if HA state is not yet established
+- Saves active firewall data for downstream configuration steps
 """
 
 import requests

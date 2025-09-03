@@ -1,8 +1,17 @@
 """
-Step 10: Commit and Sync Configuration
+Step 6: Commit and Sync Configuration
 
-Extracts commit_changes and force_sync_config logic from PaloAltoFirewall_config class
-and adapts it for Jenkins execution.
+Commits configuration changes to the active firewall and synchronizes
+the configuration to the passive device via HA. Monitors commit job
+progress and ensures HA synchronization completes successfully.
+
+Key Features:
+- Commits all configuration changes applied in step 5
+- Handles both job-based commits and immediate OK responses
+- Forces HA configuration sync from active to passive device
+- Monitors sync completion with timeout and retry logic
+- Validates final deployment status across both devices
+- Saves commit and sync results for audit and verification
 """
 
 import requests
@@ -58,11 +67,11 @@ class Step06_CommitSync:
             
             commit_results = {}
             
-            # Step 10.1: Commit Configuration Changes
+            # Commit Configuration Changes
             if not self._commit_changes(active_fw_list, active_fw_headers, commit_results):
                 return False
             
-            # Step 10.2: Force HA Configuration Sync
+            # Force HA Configuration Sync
             if not self._force_sync_config(active_fw_list, active_fw_headers, commit_results):
                 return False
             
