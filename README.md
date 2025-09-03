@@ -33,6 +33,22 @@ The [original eve-ng_automation_PA](https://github.com/jotape75/eve-ng_automatio
 
 This Jenkins-based evolution transforms the deployment process into a **centralized, web-driven workflow** that maintains all the core functionality while adding enterprise-grade automation capabilities.
 
+## 📂 Repository Setup
+
+### 🐙 GitHub Repository
+This automation is hosted on GitHub and can be easily integrated into your Jenkins environment:
+
+```bash
+# Clone the repository
+git clone https://github.com/jotape75/jenkins_PA_automation.git
+
+# Navigate to project directory
+cd jenkins_PA_automation
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
 ## 🏗️ Architecture
 
 ### 🚀 Pipeline Stages
@@ -72,6 +88,13 @@ jenkins_PA_automation/
 ├── Jenkinsfile                    # Pipeline definition
 └── requirements.txt               # Python dependencies
 ```
+
+### 🔧 Jenkins Integration
+1. **Create New Pipeline Job** in Jenkins
+2. **Pipeline from SCM** → Select Git
+3. **Repository URL**: `https://github.com/jotape75/jenkins_PA_automation.git`
+4. **Script Path**: `Jenkinsfile`
+5. **Save and Build with Parameters**
 
 ## ⚙️ Configuration Parameters
 
